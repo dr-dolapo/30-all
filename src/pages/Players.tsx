@@ -70,10 +70,16 @@ export function ProfileSections({ u, courts, racquets, record, private: priv }: 
           {record.form.length > 0 && <div style={{ textAlign: "center", marginTop: 10 }} className="small">Recent form<div className="form">{record.form.map((x, i) => <i key={i} className={x === "W" ? "w" : "l"}>{x}</i>)}</div></div>}
         </>
       )}
+      <div className="profgrid">
+      <div>
       <div className="h2">Courts</div>
       <div className="card"><dl className="kv"><dt>Home court</dt><dd>{cLine(home)}</dd>{sec.map((c, i) => <Fragment key={c.id}><dt>Secondary {i + 1}</dt><dd>{cLine(c)}</dd></Fragment>)}</dl></div>
+      </div>
+      <div>
       <div className="h2">Racquets</div>
       <div className="card"><dl className="kv">{racquets.length ? racquets.map((r, i) => <Fragment key={i}><dt>{r.primary ? "Primary" : "Secondary"}</dt><dd>{r.brand} {r.model}</dd></Fragment>) : <dd>—</dd>}</dl></div>
+      </div>
+      <div className="span-all">
       <div className="h2">Game</div>
       <div className="card"><dl className="kv">
         <dt>Plays</dt><dd>{u.hand ? `${u.hand}-handed` : "—"}</dd>
@@ -87,6 +93,8 @@ export function ProfileSections({ u, courts, racquets, record, private: priv }: 
           <dt>Email</dt><dd style={{ wordBreak: "break-all" }}>{priv.email}</dd>
         </>}
       </dl></div>
+      </div>
+      </div>
     </>
   );
 }
@@ -102,9 +110,13 @@ export function Player() {
   return (
     <>
       <TopBar title={p.first} back={() => nav(-1)} />
-      <main>
+      <main className="wide">
+       <div className="cols">
+       <section>
         <div style={{ textAlign: "right" }}><button className={"btn sm" + (p.isFavourite ? "" : " ghost")} onClick={toggle}>{p.isFavourite ? "★ Favourite" : "☆ Add to favourites"}</button></div>
         <ProfileSections u={p} courts={p.courts} racquets={p.racquets} record={p.record} />
+       </section>
+       <section>
         <div className="h2">Head-to-head: you vs {p.first}</div>
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
@@ -114,6 +126,8 @@ export function Player() {
           </div>
         </div>
         {p.h2h.matches.map((m) => <MatchCard key={m.id} m={m} />)}
+       </section>
+       </div>
       </main>
       <BottomNav pending={pending} />
     </>

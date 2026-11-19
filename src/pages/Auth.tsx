@@ -37,7 +37,7 @@ export function Login() {
   return (
     <>
       <TopBar title="Log in" back="/" />
-      <main>
+      <main className="narrow">
         <form className="card" onSubmit={submit}>
           <label className="f">Email</label>
           <input className="inp" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -70,7 +70,7 @@ export function Forgot() {
   return (
     <>
       <TopBar title="Reset password" back="/login" />
-      <main>
+      <main className="narrow">
         {step === 1 ? (
           <form className="card" onSubmit={send}>
             <p className="ssub">Enter your email and we'll send you a 6-digit code.</p>
@@ -108,7 +108,7 @@ export function Signup() {
   return (
     <>
       <TopBar title="Create account" back="/" />
-      <main>
+      <main className="narrow">
         <div className="steps">{Array.from({ length: 7 }, (_, i) => <i key={i} className={i === 0 ? "on" : ""} />)}</div>
         <form onSubmit={submit}>
           <div className="stitle">Let's get you on court</div>
@@ -161,7 +161,7 @@ export function Verify() {
   return (
     <>
       <TopBar title="Create account" back="/signup" />
-      <main>
+      <main className="narrow">
         <div className="steps">{Array.from({ length: 7 }, (_, i) => <i key={i} className={i <= 1 ? "on" : ""} />)}</div>
         <form onSubmit={submit}>
           <div className="stitle">Check your email</div>

@@ -81,7 +81,7 @@ export function EditProfile() {
   return (
     <>
       <TopBar title="Edit profile" back="/me" />
-      <main>
+      <main className="narrow">
         <div className="card"><AvatarPicker d={d} set={set} /></div>
         <div className="card">
           <div className="row">

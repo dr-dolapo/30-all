@@ -15,7 +15,7 @@ export function Admin() {
   return (
     <>
       <TopBar title="Admin" dark right={<button className="btn sm" onClick={() => nav("/me")}>Exit</button>} />
-      <main>
+      <main className="wide">
         <div className="tabs">
           {(["courts", "users", "photos"] as Tab[]).map((t) => <button key={t} className={"chip" + (tab === t ? " on" : "")} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
         </div>
@@ -54,6 +54,7 @@ function Courts() {
     <>
       <div className="h2">Waiting for review ({pending.length})</div>
       {pending.length === 0 && <div className="empty">No courts waiting for review.</div>}
+      <div className="cardgrid">
       {pending.map((c) => (
         <div className="card" key={c.id}>
           {edit?.id === c.id ? (
@@ -83,6 +84,7 @@ function Courts() {
           )}
         </div>
       ))}
+      </div>
       <div className="h2">Add an approved court</div>
       <div className="card">
         <div className="row"><input className="inp" placeholder="Court name" value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} />
@@ -113,6 +115,7 @@ function Users() {
     <>
       <input className="inp" placeholder="Search players" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="h2" style={{ marginTop: 14 }}>Players ({shown.length})</div>
+      <div className="cardgrid">
       {shown.map((u) => (
         <div className="card" key={u.id}>
           <div className="pl" style={{ paddingTop: 0 }}>
@@ -134,6 +137,7 @@ function Users() {
           )}
         </div>
       ))}
+      </div>
     </>
   );
 }
@@ -149,7 +153,7 @@ function Photos() {
       <div className="h2">Uploaded profile photos</div>
       <p className="small" style={{ marginBottom: 10 }}>Removing a photo switches the player back to an avatar and tells them why.</p>
       {list.length === 0 && <div className="empty">No uploaded photos.</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 10 }}>
         {list.map((u) => (
           <div className="card" key={u.id} style={{ textAlign: "center", margin: 0 }}>
             <Avatar u={{ avatar: 0, photoUrl: u.photoUrl }} size={90} />
