@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Admin, AdminUserPage } from "./pages/Admin";
 import { Forgot, Login, Signup, Verify, Welcome } from "./pages/Auth";
-import { Matches, NewMatch } from "./pages/Matches";
+import { Matches } from "./pages/Matches";
 import { EditProfile, Inbox, MyProfile } from "./pages/Me";
 import { Done, Onboarding } from "./pages/Onboarding";
 import { Player, Players } from "./pages/Players";
@@ -34,7 +34,7 @@ function App() {
         <Route path="/onboarding" element={<Gate need="onboarding"><Onboarding /></Gate>} />
         <Route path="/welcome-done" element={<Gate need="active"><Done /></Gate>} />
         <Route path="/matches" element={<Gate need="active"><Matches /></Gate>} />
-        <Route path="/matches/new" element={<Gate need="active"><NewMatch /></Gate>} />
+        <Route path="/matches/new" element={<Navigate to="/matches" replace />} />
         <Route path="/players" element={<Gate need="active"><Players /></Gate>} />
         <Route path="/players/:id" element={<Gate need="active"><Player /></Gate>} />
         <Route path="/inbox" element={<Gate need="active"><Inbox /></Gate>} />
