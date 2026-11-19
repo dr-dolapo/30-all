@@ -12,7 +12,7 @@ export interface Env {
   EMAIL_PROVIDER: "console" | "resend" | "cloudflare";
   EMAIL_FROM: string;
   RESEND_API_KEY?: string;
-  ADMIN_EMAILS: string;
+  ADMIN_EMAILS?: string;
   APP_URL: string;
 }
 
@@ -74,7 +74,7 @@ export function timingSafeEqual(a: string, b: string): boolean {
 export const fullName = (u: { first_name: string; last_name: string }) => `${u.first_name} ${u.last_name}`;
 
 export const isAdminEmail = (env: Env, email: string) =>
-  env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean).includes(email.toLowerCase());
+  (env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean).includes(email.toLowerCase());
 
 export function str(v: unknown, max = 200): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";

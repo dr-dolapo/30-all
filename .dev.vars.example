@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local development (never commit .dev.vars).
+EMAIL_PROVIDER=console
+APP_URL=http://localhost:8787
+ADMIN_EMAILS=you@example.com

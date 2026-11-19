@@ -27,16 +27,22 @@
       "bucket_name": "thirty-all-photos"
     }
   ],
+  // The app is served at https://thirtyall.app (Cloudflare creates the DNS record and certificate).
+  "routes": [{ "pattern": "thirtyall.app", "custom_domain": true }],
+  // Cloudflare Email Service: sends verification codes and notifications from @thirtyall.app.
+  "send_email": [{ "name": "EMAIL" }],
   "triggers": {
     "crons": ["0 * * * *"]
   },
+  // Keep variables added in the Cloudflare dashboard (e.g. ADMIN_EMAILS) when deploying.
+  "keep_vars": true,
   "vars": {
-    // "console" logs emails (local dev). "resend" sends via Resend (needs RESEND_API_KEY secret).
-    // "cloudflare" uses Cloudflare Email Service once your account has it (needs the EMAIL binding).
-    "EMAIL_PROVIDER": "console",
-    "EMAIL_FROM": "30-All <no-reply@example.com>",
-    // Comma-separated emails that become admins when they sign up or log in.
-    "ADMIN_EMAILS": "",
-    "APP_URL": "http://localhost:8787"
+    // "cloudflare" = Cloudflare Email Service, "resend" = Resend (needs RESEND_API_KEY secret),
+    // "console" = print emails to the log (used for local development via .dev.vars).
+    "EMAIL_PROVIDER": "cloudflare",
+    "EMAIL_FROM": "30-All <no-reply@thirtyall.app>",
+    "APP_URL": "https://thirtyall.app"
+    // ADMIN_EMAILS is set in the Cloudflare dashboard (Settings → Variables and Secrets),
+    // so personal emails stay out of this public repo.
   }
 }
