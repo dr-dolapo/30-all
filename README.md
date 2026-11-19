@@ -21,7 +21,8 @@ The frontend and API run as one Worker (Cloudflare's recommended setup for full-
 ```bash
 npm install
 npm run db:migrate:local          # creates the local database with the starter courts and racquets
-npm run build && npx wrangler dev --var ADMIN_EMAILS:you@example.com
+cp .dev.vars.example .dev.vars    # local settings: emails print to the terminal
+npm run build && npx wrangler dev
 ```
 
 Open http://localhost:8787. In development, emails (including verification codes) are **printed in the terminal** where `wrangler dev` is running.
@@ -33,23 +34,21 @@ npm test          # score rules, player IDs, dates
 npm run typecheck
 ```
 
-## Deploy to Cloudflare (free *.workers.dev address)
+## Deploy (no local commands needed)
 
-1. Log in: `npx wrangler login`
-2. Create the database: `npx wrangler d1 create thirty-all-db`, then paste the printed `database_id` into `wrangler.jsonc`.
-3. Create the photo bucket: `npx wrangler r2 bucket create thirty-all-photos`
-4. Set up the database: `npm run db:migrate:remote`
-5. In `wrangler.jsonc` → `vars`, set:
-   - `ADMIN_EMAILS`: comma-separated emails that become admins when they sign up or log in.
-   - `APP_URL`: your app's address, e.g. `https://thirty-all.<your-subdomain>.workers.dev` (used in email links).
-6. Deploy: `npm run deploy`
+Production runs at **https://thirtyall.app** and deploys automatically from the `main` branch with Cloudflare Workers Builds.
 
-### Email (needed before friends can sign up)
+One-time setup in the Cloudflare dashboard:
+1. **D1:** create a database named `thirty-all-db` and put its ID in `wrangler.jsonc` (`database_id`).
+2. **R2:** enable R2 and create a bucket named `thirty-all-photos`.
+3. **Email Service:** onboard `thirtyall.app` for sending.
+4. **Workers & Pages → Create → Import a repository:** pick `dr-dolapo/30-all`, project name `thirty-all`, build command `npm run build`, deploy command `npm run deploy:ci` (applies database migrations, then deploys).
+5. Give the build's API token **D1 · Edit** permission (My Profile → API Tokens), so migrations can run.
+6. After the first deploy: **Settings → Variables and Secrets** on the Worker, add `ADMIN_EMAILS` (comma-separated).
 
-Sign-up needs a verification code by email. Both providers below require **a domain you own** to send to other people. Until you set one up, keep `EMAIL_PROVIDER: "console"` and read codes with `npx wrangler tail` (fine for testing, not for real users).
+After that, every merge to `main` builds, migrates and deploys automatically.
 
-- **Cloudflare Email Service**: add your domain to Cloudflare and onboard it in Email Service. Then in `wrangler.jsonc` add `"send_email": [{ "name": "EMAIL" }]`, set `EMAIL_PROVIDER` to `"cloudflare"` and `EMAIL_FROM` to an address on that domain.
-- **Resend**: verify your domain at resend.com, then run `npx wrangler secret put RESEND_API_KEY`, set `EMAIL_PROVIDER` to `"resend"` and `EMAIL_FROM` to an address on that domain.
+For local development, copy `.dev.vars.example` to `.dev.vars` (emails are then printed to the terminal).
 
 ## Product rules (v1)
 
