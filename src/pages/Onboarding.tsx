@@ -53,7 +53,7 @@ export function Onboarding() {
   return (
     <>
       <TopBar title="Create account" back={i === 0 ? undefined : () => setI(i - 1)} />
-      <main>
+      <main className="narrow">
         <div className="steps">{Array.from({ length: 7 }, (_, k) => <i key={k} className={k <= i + 2 ? "on" : ""} />)}</div>
         <div className="stitle">{TITLES[step][0]}</div>
         <p className="ssub">{TITLES[step][1]}</p>

@@ -82,6 +82,7 @@ export function BottomNav({ pending = 0 }: { pending?: number }) {
   );
   return (
     <nav className="nav">
+      <div className="navbrand"><img src="/logo-black.png" alt="" /><b>30-All</b></div>
       {item("/matches", ICON.matches, "Matches", pending)}
       {item("/players", ICON.players, "Players")}
       {item("/inbox", ICON.inbox, "Inbox", me?.unread)}

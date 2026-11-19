@@ -64,11 +64,15 @@ export function Matches() {
   return (
     <>
       <TopBar title="Matches" />
-      <main>
+      <main className="wide">
+       <div className="cols">
+       <section>
         <button className="btn" style={{ marginBottom: 14 }} onClick={() => nav("/matches/new")}>+ Enter a score</button>
         {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
         {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
-
+        {toAnswer.length + waiting.length === 0 && pending !== null && <div className="hide-mobile"><div className="h2">Pending</div><div className="empty card">No scores waiting for an answer.</div></div>}
+       </section>
+       <section className="sticky-col">
         <div className="h2">Results</div>
         <div className="chips" style={{ marginBottom: 8 }}>
           <button className={"chip" + (!filter.mine ? " on" : "")} onClick={() => setFilter({ ...filter, mine: false })}>Everyone</button>
@@ -83,11 +87,15 @@ export function Matches() {
           </select>
         </div>
         <Calendar month={month} onMonth={(m) => { setMonth(m); setSel(null); }} days={days} selected={sel} onSelect={setSel} />
+       </section>
+       <section className="list-col">
         <div className="h2" style={{ display: "flex", justifyContent: "space-between" }}>
           <span>{sel ? new Date(sel + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "This month"}</span>
           {sel && <button className="link" style={{ textTransform: "none" }} onClick={() => setSel(null)}>Show whole month</button>}
         </div>
-        {list === null ? <Loading /> : shown.length ? shown.map((m) => <MatchCard key={m.id} m={m} />) : <div className="empty">No confirmed matches here yet.</div>}
+        {list === null ? <Loading /> : shown.length ? <div className="cardgrid">{shown.map((m) => <MatchCard key={m.id} m={m} />)}</div> : <div className="empty">No confirmed matches here yet.</div>}
+       </section>
+       </div>
       </main>
       <BottomNav pending={toAnswer.length} />
     </>
@@ -157,7 +165,7 @@ export function NewMatch() {
   return (
     <>
       <TopBar title="Enter a score" back="/matches" />
-      <main>
+      <main className="narrow">
         <div className="card">
           <label className="f" style={{ marginTop: 0 }}>Match type</label>
           <div className="seg">
