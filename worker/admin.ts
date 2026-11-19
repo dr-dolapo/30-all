@@ -97,8 +97,12 @@ admin.post("/courts/:id/merge", async (c) => {
 
 admin.get("/users", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT id, pid, first_name AS first, last_name AS last, email, whatsapp, gender, dob, status, is_admin AS isAdmin, photo_key, avatar, created_at AS createdAt
-     FROM users WHERE status != 'deleted' ORDER BY first_name, last_name`,
+    `SELECT u.id, u.pid, u.first_name AS first, u.last_name AS last, u.email, u.whatsapp, u.gender, u.dob, u.status, u.is_admin AS isAdmin,
+       u.photo_key, u.avatar, u.created_at AS createdAt, hc.id AS homeCourtId, hc.name AS homeCourtName, hc.status AS homeCourtStatus
+     FROM users u
+     LEFT JOIN user_courts uc ON uc.user_id = u.id AND uc.role = 'home'
+     LEFT JOIN courts hc ON hc.id = uc.court_id
+     WHERE u.status != 'deleted' ORDER BY u.first_name, u.last_name`,
   ).all<any>();
   return c.json(results.map((r) => ({ ...r, isAdmin: !!r.isAdmin, photoUrl: photoUrl(r.photo_key), photo_key: undefined })));
 });
@@ -122,6 +126,25 @@ admin.patch("/users/:id", async (c) => {
     if (id === me.id && !b.isAdmin) throw bad("You can't remove your own admin access");
     await c.env.DB.prepare("UPDATE users SET is_admin = ? WHERE id = ?").bind(b.isAdmin ? 1 : 0, id).run();
   }
+  return c.json({ ok: true });
+});
+
+/** Changes a player's home court to an approved court and tells them. */
+admin.put("/users/:id/home-court", async (c) => {
+  const id = c.req.param("id");
+  const b = await c.req.json().catch(() => ({}));
+  const u = await c.env.DB.prepare("SELECT id FROM users WHERE id = ? AND status != 'deleted'").bind(id).first();
+  if (!u) throw new HttpError(404, "Player not found");
+  const court = await c.env.DB.prepare("SELECT id, name FROM courts WHERE id = ? AND status = 'approved'").bind(str(b.courtId, 64)).first<{ id: string; name: string }>();
+  if (!court) throw bad("Choose an approved court");
+  const current = await c.env.DB.prepare("SELECT court_id FROM user_courts WHERE user_id = ? AND role = 'home'").bind(id).first<{ court_id: string }>();
+  if (current?.court_id === court.id) throw bad("That's already their home court");
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM user_courts WHERE user_id = ? AND (role = 'home' OR court_id = ?)").bind(id, court.id), // drop old home, and the new one if it was a secondary
+    c.env.DB.prepare("INSERT INTO user_courts (user_id,court_id,role,position) VALUES (?,?,'home',0)").bind(id, court.id),
+  ]);
+  await notify(c.env, (p) => c.executionCtx.waitUntil(p), [id],
+    `An admin changed your home court to ${court.name}. You can change it again from your profile.`, { subject: "Your home court was updated" });
   return c.json({ ok: true });
 });
 

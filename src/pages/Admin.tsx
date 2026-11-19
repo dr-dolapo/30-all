@@ -101,13 +101,29 @@ function Courts() {
   );
 }
 
-interface AdminUser { id: string; pid: string; first: string; last: string; email: string; whatsapp: string | null; gender: string | null; dob: string | null; status: string; isAdmin: boolean; avatar: number; photoUrl: string | null }
+interface AdminUser {
+  id: string; pid: string; first: string; last: string; email: string; whatsapp: string | null; gender: string | null; dob: string | null;
+  status: string; isAdmin: boolean; avatar: number; photoUrl: string | null;
+  homeCourtId: string | null; homeCourtName: string | null; homeCourtStatus: string | null;
+}
 
 function Users() {
   const { toast, confirm } = useUi(); const { me } = useSession();
   const [list, setList] = useState<AdminUser[] | null>(null); const [q, setQ] = useState("");
+  const [courts, setCourts] = useState<AdminCourt[]>([]);
   const load = () => api.get<AdminUser[]>("/admin/users").then(setList);
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); api.get<AdminCourt[]>("/admin/courts").then((cs) => setCourts(cs.filter((c) => c.status === "approved"))).catch(() => {}); }, []);
+  const changeHome = (u: AdminUser, courtId: string) => {
+    const ct = courts.find((c) => c.id === courtId);
+    if (!ct) return;
+    confirm({
+      title: `Change ${u.first}'s home court?`,
+      body: <>From <b>{u.homeCourtName ?? "none"}</b> to <b>{ct.name}</b>. {u.first} will be notified.</>,
+      ok: "Change home court",
+      onOk: async () => { try { await api.put(`/admin/users/${u.id}/home-court`, { courtId }); toast(`${u.first}'s home court is now ${ct.name}.`); } catch (e: any) { toast(e.message); } load(); },
+    });
+  };
+  const states = [...new Set(courts.map((c) => c.state))];
   if (!list) return <Loading />;
   const patch = async (u: AdminUser, body: object, msg: string) => { try { await api.patch(`/admin/users/${u.id}`, body); toast(msg); load(); } catch (e: any) { toast(e.message); load(); } };
   const shown = list.filter((u) => !q || `${u.first} ${u.last} ${u.pid} ${u.email}`.toLowerCase().includes(q.toLowerCase()));
@@ -127,6 +143,14 @@ function Users() {
             <dt>Gender</dt><dd>{u.gender || "—"}</dd>
             <dt>Date of birth</dt><dd><input type="date" className="inp" style={{ padding: "5px 8px" }} defaultValue={u.dob ?? ""} onBlur={(e) => e.target.value && e.target.value !== u.dob && patch(u, { dob: e.target.value }, `Date of birth updated for ${u.first}.`)} /></dd>
             <dt>Age</dt><dd>{u.dob ? ageOn(u.dob, new Date()) : "—"}</dd>
+            <dt>Home court</dt>
+            <dd>
+              <select className="inp" style={{ padding: "5px 8px" }} aria-label={`Home court for ${u.first}`} value={u.homeCourtStatus === "approved" ? u.homeCourtId ?? "" : ""}
+                onChange={(e) => e.target.value && changeHome(u, e.target.value)}>
+                <option value="">{u.homeCourtId ? (u.homeCourtStatus === "approved" ? "—" : `${u.homeCourtName} (pending)`) : "None yet"}</option>
+                {states.map((st) => <optgroup key={st} label={st}>{courts.filter((c) => c.state === st).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}
+              </select>
+            </dd>
           </dl>
           {u.id !== me?.id && (
             <div className="acts">
