@@ -213,3 +213,6 @@ a{color:inherit}
   .welcome h2{font-size:44px}
   .btn{cursor:pointer}
 }
+.eye{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--ink2)}
+.eye:hover{background:#EFEFEF}
+.eye[aria-pressed="true"]{color:var(--o-dark)}

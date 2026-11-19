@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Fragment, useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
-import { ageOn } from "../../shared/rules";
-import { api } from "../api";
+import { api, type CourtRef, type Racquet } from "../api";
 import { Avatar, ErrorText, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
 type Tab = "courts" | "users" | "photos";
 
 export function Admin() {
   const { me } = useSession(); const nav = useNavigate();
-  const [tab, setTab] = useState<Tab>("courts");
+  const [params, setParams] = useSearchParams();
+  const tab = (["courts", "users", "photos"].includes(params.get("tab") ?? "") ? params.get("tab") : "courts") as Tab;
+  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
   if (!me) return <Loading />;
   if (!me.isAdmin) return <><TopBar title="Admin" back="/me" /><main><div className="empty">Admins only.</div></main></>;
   return (
@@ -102,30 +103,55 @@ function Courts() {
 }
 
 interface AdminUser {
-  id: string; pid: string; first: string; last: string; email: string; whatsapp: string | null; gender: string | null; dob: string | null;
+  id: string; pid: string; first: string; last: string; email: string; whatsapp: string | null; gender: string | null;
   status: string; isAdmin: boolean; avatar: number; photoUrl: string | null;
   homeCourtId: string | null; homeCourtName: string | null; homeCourtStatus: string | null;
 }
 
-function Users() {
-  const { toast, confirm } = useUi(); const { me } = useSession();
-  const [list, setList] = useState<AdminUser[] | null>(null); const [q, setQ] = useState("");
+/** Approved courts for the home-court dropdowns, grouped by state. */
+function useApprovedCourts() {
   const [courts, setCourts] = useState<AdminCourt[]>([]);
-  const load = () => api.get<AdminUser[]>("/admin/users").then(setList);
-  useEffect(() => { load(); api.get<AdminCourt[]>("/admin/courts").then((cs) => setCourts(cs.filter((c) => c.status === "approved"))).catch(() => {}); }, []);
-  const changeHome = (u: AdminUser, courtId: string) => {
+  useEffect(() => { api.get<AdminCourt[]>("/admin/courts").then((cs) => setCourts(cs.filter((c) => c.status === "approved"))).catch(() => {}); }, []);
+  return courts;
+}
+
+/** Dropdown that changes a player's home court after a confirmation. */
+export function HomeCourtSelect({ user, courts, onChanged }: {
+  user: { id: string; first: string; homeCourtId: string | null; homeCourtName: string | null; homeCourtStatus: string | null };
+  courts: AdminCourt[]; onChanged: () => void;
+}) {
+  const { toast, confirm } = useUi();
+  const states = [...new Set(courts.map((c) => c.state))];
+  const change = (courtId: string) => {
     const ct = courts.find((c) => c.id === courtId);
     if (!ct) return;
     confirm({
-      title: `Change ${u.first}'s home court?`,
-      body: <>From <b>{u.homeCourtName ?? "none"}</b> to <b>{ct.name}</b>. {u.first} will be notified.</>,
+      title: `Change ${user.first}'s home court?`,
+      body: <>From <b>{user.homeCourtName ?? "none"}</b> to <b>{ct.name}</b>. {user.first} will be notified.</>,
       ok: "Change home court",
-      onOk: async () => { try { await api.put(`/admin/users/${u.id}/home-court`, { courtId }); toast(`${u.first}'s home court is now ${ct.name}.`); } catch (e: any) { toast(e.message); } load(); },
+      onOk: async () => { try { await api.put(`/admin/users/${user.id}/home-court`, { courtId }); toast(`${user.first}'s home court is now ${ct.name}.`); } catch (e: any) { toast(e.message); } onChanged(); },
     });
   };
-  const states = [...new Set(courts.map((c) => c.state))];
+  return (
+    <select className="inp" style={{ padding: "5px 8px" }} aria-label={`Home court for ${user.first}`} value={user.homeCourtStatus === "approved" ? user.homeCourtId ?? "" : ""}
+      onChange={(e) => e.target.value && change(e.target.value)}>
+      <option value="">{user.homeCourtId ? (user.homeCourtStatus === "approved" ? "—" : `${user.homeCourtName} (pending)`) : "None yet"}</option>
+      {states.map((st) => <optgroup key={st} label={st}>{courts.filter((c) => c.state === st).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}
+    </select>
+  );
+}
+
+export function StatusPills({ u }: { u: { status: string; isAdmin: boolean } }) {
+  return <>{u.status === "suspended" && <span className="pill bad">Suspended</span>} {u.status === "onboarding" && <span className="pill pend">Signing up</span>} {u.isAdmin && <span className="pill o">Admin</span>}</>;
+}
+
+function Users() {
+  const nav = useNavigate();
+  const [list, setList] = useState<AdminUser[] | null>(null); const [q, setQ] = useState("");
+  const courts = useApprovedCourts();
+  const load = () => api.get<AdminUser[]>("/admin/users").then(setList);
+  useEffect(() => { load(); }, []);
   if (!list) return <Loading />;
-  const patch = async (u: AdminUser, body: object, msg: string) => { try { await api.patch(`/admin/users/${u.id}`, body); toast(msg); load(); } catch (e: any) { toast(e.message); load(); } };
   const shown = list.filter((u) => !q || `${u.first} ${u.last} ${u.pid} ${u.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
@@ -136,32 +162,161 @@ function Users() {
         <div className="card" key={u.id}>
           <div className="pl" style={{ paddingTop: 0 }}>
             <Avatar u={u} size={40} />
-            <div className="grow"><div className="nm">{fullName(u)} {u.status === "suspended" && <span className="pill bad">Suspended</span>} {u.status === "onboarding" && <span className="pill pend">Signing up</span>} {u.isAdmin && <span className="pill o">Admin</span>}</div><div className="id">{u.pid} · {u.email}</div></div>
+            <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid} · {u.email}</div></div>
           </div>
           <dl className="kv" style={{ fontSize: 13 }}>
             <dt>WhatsApp</dt><dd>{u.whatsapp || "—"}</dd>
             <dt>Gender</dt><dd>{u.gender || "—"}</dd>
-            <dt>Date of birth</dt><dd><input type="date" className="inp" style={{ padding: "5px 8px" }} defaultValue={u.dob ?? ""} onBlur={(e) => e.target.value && e.target.value !== u.dob && patch(u, { dob: e.target.value }, `Date of birth updated for ${u.first}.`)} /></dd>
-            <dt>Age</dt><dd>{u.dob ? ageOn(u.dob, new Date()) : "—"}</dd>
-            <dt>Home court</dt>
-            <dd>
-              <select className="inp" style={{ padding: "5px 8px" }} aria-label={`Home court for ${u.first}`} value={u.homeCourtStatus === "approved" ? u.homeCourtId ?? "" : ""}
-                onChange={(e) => e.target.value && changeHome(u, e.target.value)}>
-                <option value="">{u.homeCourtId ? (u.homeCourtStatus === "approved" ? "—" : `${u.homeCourtName} (pending)`) : "None yet"}</option>
-                {states.map((st) => <optgroup key={st} label={st}>{courts.filter((c) => c.state === st).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>)}
-              </select>
-            </dd>
+            <dt>Home court</dt><dd><HomeCourtSelect user={u} courts={courts} onChanged={load} /></dd>
           </dl>
-          {u.id !== me?.id && (
-            <div className="acts">
-              {u.status !== "onboarding" && <button className="btn sm ghost" onClick={() => patch(u, { status: u.status === "suspended" ? "active" : "suspended" }, `${u.first} is now ${u.status === "suspended" ? "active" : "suspended"}.`)}>{u.status === "suspended" ? "Unsuspend" : "Suspend"}</button>}
-              <button className="btn sm ghost" onClick={() => patch(u, { isAdmin: !u.isAdmin }, u.isAdmin ? `${u.first} is no longer an admin.` : `${u.first} is now an admin.`)}>{u.isAdmin ? "Remove admin" : "Make admin"}</button>
-              <button className="btn sm bad" onClick={() => confirm({ title: `Delete ${fullName(u)}?`, body: "Their login and personal details are removed. Their name stays on past confirmed matches so opponents' records stay right. Their pending scores are closed.", ok: "Delete", danger: true, onOk: async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); load(); } catch (e: any) { toast(e.message); } } })}>Delete</button>
-            </div>
-          )}
+          <div className="acts"><button className="btn sm ghost" onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button></div>
         </div>
       ))}
       </div>
+    </>
+  );
+}
+
+/* ---------- full player page for admins ---------- */
+
+interface AdminUserDetail {
+  id: string; pid: string; first: string; last: string; email: string; status: string; isAdmin: boolean;
+  gender: string | null; nationality: string | null; whatsapp: string | null; heightCm: number | null; heightUnit: string;
+  hand: string | null; backhand: string | null; shot: string | null; avatar: number; photoUrl: string | null; createdAt: number;
+  courts: CourtRef[]; racquets: Racquet[]; record: { played: number; won: number; lost: number; form: string[] };
+}
+
+const EyeIcon = ({ open }: { open: boolean }) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
+    {!open && <path d="M3 3l18 18" />}
+  </svg>
+);
+
+/** Shows **** until the admin clicks the eye. */
+function Masked({ value, shown, onToggle, label }: { value: React.ReactNode; shown: boolean; onToggle: () => void; label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontVariantNumeric: "tabular-nums", letterSpacing: shown ? 0 : ".1em" }}>{shown ? value : "****"}</span>
+      <button type="button" className="eye" aria-label={shown ? `Hide ${label}` : `Show ${label}`} aria-pressed={shown} onClick={onToggle}><EyeIcon open={shown} /></button>
+    </span>
+  );
+}
+
+export function AdminUserPage() {
+  const { id } = useParams(); const nav = useNavigate(); const { me } = useSession(); const { toast, confirm } = useUi();
+  const [u, setU] = useState<AdminUserDetail | null>(null); const [err, setErr] = useState("");
+  const [dob, setDob] = useState<{ dob: string | null; age: number | null } | null>(null);
+  const [show, setShow] = useState({ dob: false, age: false });
+  const [editDob, setEditDob] = useState<string | null>(null);
+  const courts = useApprovedCourts();
+  const load = () => api.get<AdminUserDetail>(`/admin/users/${id}`).then(setU).catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, [id]);
+  const back = () => nav("/admin?tab=users");
+
+  if (!me?.isAdmin) return <><TopBar title="Admin" back="/me" /><main><div className="empty">Admins only.</div></main></>;
+  if (err) return <><TopBar title="Player" back={back} dark /><main><ErrorText msg={err} /></main></>;
+  if (!u) return <Loading />;
+
+  const reveal = async (field: "dob" | "age") => {
+    if (show[field]) { setShow({ ...show, [field]: false }); return; }
+    if (!dob) { try { setDob(await api.get(`/admin/users/${u.id}/dob`)); } catch (e: any) { toast(e.message); return; } }
+    setShow({ ...show, [field]: true });
+  };
+  const saveDob = async () => {
+    if (!editDob) return;
+    try { await api.patch(`/admin/users/${u.id}`, { dob: editDob }); setDob(await api.get(`/admin/users/${u.id}/dob`)); setEditDob(null); toast(`Date of birth updated for ${u.first}.`); }
+    catch (e: any) { toast(e.message); }
+  };
+  const patch = async (body: object, msg: string) => { try { await api.patch(`/admin/users/${u.id}`, body); toast(msg); load(); } catch (e: any) { toast(e.message); } };
+  const home = u.courts.find((c) => c.role === "home");
+  const sec = u.courts.filter((c) => c.role === "secondary");
+  const height = u.heightCm ? (u.heightUnit === "imperial" ? `${Math.floor(Math.round(u.heightCm / 2.54) / 12)}′${Math.round(u.heightCm / 2.54) % 12}″ (${u.heightCm} cm)` : `${u.heightCm} cm`) : "—";
+  const fmt = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const isMe = u.id === me.id;
+
+  return (
+    <>
+      <TopBar title={fullName(u)} back={back} dark />
+      <main>
+        <div className="prohead">
+          <Avatar u={u} size={96} />
+          <div className="nm">{fullName(u)}</div>
+          <div className="idtag">{u.pid}</div>
+          <div style={{ marginTop: 8 }}><StatusPills u={u} /></div>
+        </div>
+        <div className="stats"><div><b>{u.record.played}</b><span>Played</span></div><div><b style={{ color: "var(--ok)" }}>{u.record.won}</b><span>Won</span></div><div><b>{u.record.lost}</b><span>Lost</span></div></div>
+
+        <div className="profgrid">
+          <div className="span-all">
+            <div className="h2">Personal details</div>
+            <div className="card"><dl className="kv">
+              <dt>Email</dt><dd style={{ wordBreak: "break-all" }}>{u.email}</dd>
+              <dt>WhatsApp</dt><dd>{u.whatsapp || "—"}</dd>
+              <dt>Gender</dt><dd>{u.gender || "—"}</dd>
+              <dt>Nationality</dt><dd>{u.nationality || "—"}</dd>
+              <dt>Date of birth</dt>
+              <dd>
+                {editDob !== null ? (
+                  <span className="row" style={{ gap: 6 }}>
+                    <input type="date" className="inp" style={{ padding: "5px 8px" }} value={editDob} onChange={(e) => setEditDob(e.target.value)} />
+                    <button className="btn sm dark" style={{ flex: "0 0 auto" }} onClick={saveDob}>Save</button>
+                    <button className="btn sm ghost" style={{ flex: "0 0 auto" }} onClick={() => setEditDob(null)}>Cancel</button>
+                  </span>
+                ) : (
+                  <>
+                    <Masked label="date of birth" shown={show.dob} onToggle={() => reveal("dob")} value={dob?.dob ? fmt(dob.dob) : "—"} />
+                    {show.dob && <button className="link small" style={{ marginLeft: 10 }} onClick={() => setEditDob(dob?.dob ?? "")}>Change</button>}
+                  </>
+                )}
+              </dd>
+              <dt>Age</dt><dd><Masked label="age" shown={show.age} onToggle={() => reveal("age")} value={dob?.age ?? "—"} /></dd>
+              <dt>Height</dt><dd>{height}</dd>
+              <dt>Joined</dt><dd>{new Date(u.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</dd>
+            </dl></div>
+          </div>
+          <div>
+            <div className="h2">Courts</div>
+            <div className="card"><dl className="kv">
+              <dt>Home court</dt>
+              <dd><HomeCourtSelect user={{ id: u.id, first: u.first, homeCourtId: home?.id ?? null, homeCourtName: home?.name ?? null, homeCourtStatus: home?.status ?? null }} courts={courts} onChanged={load} /></dd>
+              {sec.map((c, i) => <Fragment key={c.id}><dt>Secondary {i + 1}</dt><dd>{c.name} {c.status === "pending" && <span className="pill pend">Pending</span>}</dd></Fragment>)}
+            </dl></div>
+          </div>
+          <div>
+            <div className="h2">Racquets</div>
+            <div className="card"><dl className="kv">
+              {u.racquets.length ? u.racquets.map((r, i) => <Fragment key={i}><dt>{r.primary ? "Primary" : "Secondary"}</dt><dd>{r.brand} {r.model}{r.custom && <span className="small"> (typed in)</span>}</dd></Fragment>) : <dd>—</dd>}
+            </dl></div>
+          </div>
+          <div className="span-all">
+            <div className="h2">Game</div>
+            <div className="card"><dl className="kv">
+              <dt>Plays</dt><dd>{u.hand ? `${u.hand}-handed` : "—"}</dd>
+              <dt>Backhand</dt><dd>{u.backhand ?? "—"}</dd>
+              <dt>Favourite shot</dt><dd>{u.shot ?? "—"}</dd>
+            </dl></div>
+          </div>
+        </div>
+
+        <div className="h2">Account</div>
+        <div className="card">
+          {isMe ? <p className="small">This is your own account. Another admin would need to change your access, suspend or delete it.</p> : (
+            <div style={{ display: "grid", gap: 10 }}>
+              <button className="btn ghost" onClick={() => patch({ isAdmin: !u.isAdmin }, u.isAdmin ? `${u.first} is no longer an admin.` : `${u.first} is now an admin.`)}>{u.isAdmin ? "Remove admin access" : "Make admin"}</button>
+              {u.status !== "onboarding" && (
+                <button className="btn ghost" onClick={() => u.status === "suspended"
+                  ? patch({ status: "active" }, `${u.first} can log in again.`)
+                  : confirm({ title: `Suspend ${u.first}?`, body: "They'll be logged out and can't log in until you unsuspend them. Their matches stay on the record.", ok: "Suspend", danger: true, onOk: () => patch({ status: "suspended" }, `${u.first} is suspended.`) })}>
+                  {u.status === "suspended" ? "Unsuspend" : "Suspend"}
+                </button>
+              )}
+              <button className="btn bad" onClick={() => confirm({ title: `Delete ${fullName(u)}?`, body: "Their login and personal details are removed. Their name stays on past confirmed matches so opponents' records stay right. Their pending scores are closed. This can't be undone.", ok: "Delete", danger: true,
+                onOk: async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } } })}>Delete player</button>
+            </div>
+          )}
+        </div>
+      </main>
     </>
   );
 }
