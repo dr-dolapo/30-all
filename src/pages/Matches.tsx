@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { addDaysISO, evalScore, FORMATS, lagosToday, scoreLine, type FormatKey } from "../../shared/rules";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, MatchCard, TopBar, useSession, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, MatchCard, useSession, useUi } from "../ui";
+
+/* ---------- helpers ---------- */
 
 export function usePendingCount() {
   const [n, setN] = useState(0);
@@ -14,37 +16,180 @@ export function usePendingCount() {
   return n;
 }
 
-export function Matches() {
-  const { me, refresh } = useSession(); const { toast, confirm } = useUi(); const nav = useNavigate();
-  const [pending, setPending] = useState<Match[] | null>(null);
-  const [list, setList] = useState<Match[] | null>(null);
-  const today = new Date();
-  const [month, setMonth] = useState({ y: today.getFullYear(), m: today.getMonth() });
-  const [sel, setSel] = useState<string | null>(null);
-  const [filter, setFilter] = useState({ mine: false, player: "", court: "" });
-  const [players, setPlayers] = useState<PublicUser[]>([]);
-  const [courts, setCourts] = useState<CourtRef[]>([]);
+const parse = (iso: string) => new Date(iso + "T12:00:00Z");
+const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? "ST" : n % 10 === 2 && n !== 12 ? "ND" : n % 10 === 3 && n !== 13 ? "RD" : "TH");
+const shortName = (p: PublicUser) => `${p.first} ${p.last.charAt(0)}.`;
+const byName = (a: PublicUser, b: PublicUser) => `${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`);
 
-  const loadPending = useCallback(() => api.get<Match[]>("/matches/pending").then(setPending).catch(() => setPending([])), []);
-  useEffect(() => { loadPending(); api.get<PublicUser[]>("/players").then(setPlayers).catch(() => {}); api.get<CourtRef[]>("/ref/courts").then(setCourts).catch(() => {}); }, [loadPending]);
+function dayLabel(iso: string, today: string) {
+  const top = iso === today ? "Today" : iso === addDaysISO(today, -1) ? "Yesterday" : parse(iso).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
+  const d = parse(iso);
+  const bottom = `${ordinal(d.getUTCDate())} ${d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }).toUpperCase()}`;
+  return { top, bottom };
+}
+
+function datesBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  for (let d = from; d <= to; d = addDaysISO(d, 1)) out.push(d);
+  return out;
+}
+
+/* ---------- Me / All toggle ---------- */
+
+function MeAllToggle({ value, onChange }: { value: "me" | "all"; onChange: (v: "me" | "all") => void }) {
+  return (
+    <div className="mtoggle" role="radiogroup" aria-label="Show matches">
+      {(["me", "all"] as const).map((v) => (
+        <button key={v} role="radio" aria-checked={value === v} className={value === v ? "on" : ""} onClick={() => onChange(v)}>{v === "me" ? "Me" : "All"}</button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- date strip ---------- */
+
+const CalIcon = () => (
+  <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+    <rect x="3" y="6" width="26" height="23" rx="4" fill="none" stroke="#fff" strokeWidth="2.6" />
+    <path d="M3 12.5h26" stroke="#fff" strokeWidth="2.6" />
+    <path d="M9.5 3.5v5M22.5 3.5v5" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
+    {[0, 1, 2].map((c) => [0, 1].map((r) => <rect key={`${c}${r}`} x={8 + c * 6} y={16 + r * 6} width="4" height="3.4" rx="0.8" fill="#fff" />))}
+  </svg>
+);
+
+function DateStrip({ dates, selected, onSelect, marked, today, onOpenCalendar }: {
+  dates: string[]; selected: string; onSelect: (d: string) => void; marked: Set<string>; today: string; onOpenCalendar: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+  // Keep the selected date in view: centered where possible, and today sits just left of the calendar icon.
+  useLayoutEffect(() => {
+    const box = ref.current, el = box?.querySelector<HTMLElement>(`[data-date="${selected}"]`);
+    if (!box || !el) return;
+    const iconW = 64;
+    const target = el.offsetLeft - (box.clientWidth - iconW - el.offsetWidth) / 2;
+    box.scrollTo({ left: Math.max(0, target), behavior: first.current ? "auto" : "smooth" });
+    first.current = false;
+  }, [selected, dates.length]);
+  return (
+    <div className="dstrip-wrap">
+      <div className="dstrip" ref={ref}>
+        {dates.map((d) => {
+          const { top, bottom } = dayLabel(d, today);
+          return (
+            <button key={d} data-date={d} className={"dday" + (d === selected ? " sel" : "")} aria-pressed={d === selected} onClick={() => onSelect(d)}>
+              <span className="dtop">{top}</span>
+              <span className="dbot">{bottom}</span>
+              {marked.has(d) && <i className="ddot" title="Has matches" />}
+            </button>
+          );
+        })}
+      </div>
+      <div className="dfade" aria-hidden="true" />
+      <button className="dcal" aria-label="Pick a date" onClick={onOpenCalendar}><CalIcon /></button>
+    </div>
+  );
+}
+
+function DatePickerModal({ selected, min, max, marked, onPick, onClose }: {
+  selected: string; min: string; max: string; marked: Set<string>; onPick: (d: string) => void; onClose: () => void;
+}) {
+  const d = parse(selected);
+  const [month, setMonth] = useState({ y: d.getUTCFullYear(), m: d.getUTCMonth() });
   useEffect(() => {
-    setList(null);
-    const q = new URLSearchParams({ month: `${month.y}-${String(month.m + 1).padStart(2, "0")}` });
-    if (filter.mine) q.set("mine", "1"); if (filter.player) q.set("player", filter.player); if (filter.court) q.set("court", filter.court);
-    api.get<Match[]>(`/matches?${q}`).then(setList).catch(() => setList([]));
-  }, [month, filter]);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+  return (
+    <div className="dialog-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="dialog datepick" role="dialog" aria-modal="true" aria-label="Pick a date">
+        <Calendar month={month} onMonth={setMonth} days={marked} selected={selected} min={min} max={max} onSelect={(x) => { if (x) onPick(x); }} />
+        <button className="btn ghost" style={{ marginTop: 12 }} onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
 
-  const days = useMemo(() => new Set((list ?? []).map((m) => m.date)), [list]);
-  if (!me) return <Loading />;
-  const toAnswer = (pending ?? []).filter((m) => m.teamB.some((p) => p.id === me.id));
-  const waiting = (pending ?? []).filter((m) => m.teamA.some((p) => p.id === me.id));
-  const shown = (list ?? []).filter((m) => !sel || m.date === sel);
+/* ---------- empty state: Love-Love scoreboard ---------- */
 
+function LoveLove() {
+  return (
+    <div className="lovelove">
+      <svg className="love-love-scoreboard" width="120" height="100" viewBox="0 0 240 200" role="img" aria-label="Scoreboard reading 0–0">
+        <rect x="58" y="146" width="8" height="40" fill="#B5B0AA" />
+        <rect x="174" y="146" width="8" height="40" fill="#B5B0AA" />
+        <line x1="24" y1="186" x2="216" y2="186" stroke="#1A1A1A" strokeWidth="3" strokeLinecap="round" />
+        <rect x="28" y="30" width="184" height="120" rx="14" fill="#DDD9D3" />
+        <rect x="40" y="42" width="160" height="96" rx="8" fill="#F3F1EE" />
+        <text x="80" y="62" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="14" fontWeight="700" letterSpacing="1.5" fill="#6B6661">YOU</text>
+        <text x="160" y="62" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="14" fontWeight="700" letterSpacing="1.5" fill="#6B6661">OPP</text>
+        <text className="ll-flick" x="80" y="122" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="50" fontWeight="800" fill="#FF751F">0</text>
+        <text className="ll-flick2" x="160" y="122" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="50" fontWeight="800" fill="#FF751F">0</text>
+        <g className="ll-blink">
+          <circle cx="120" cy="92" r="4" fill="#1A1A1A" />
+          <circle cx="120" cy="110" r="4" fill="#1A1A1A" />
+        </g>
+      </svg>
+      <h2>Still Love-Love</h2>
+      <p>
+        Log a{" "}
+        <span style={{ position: "relative", display: "inline-block" }}>match
+          <svg width="112.5" height="135" viewBox="0 0 150 180" aria-hidden="true" style={{ position: "absolute", left: "50%", top: "100%", overflow: "visible" }}>
+            <path d="M0 6 C -2 44, 34 72, 70 96 C 100 116, 112 152, 134 174" fill="none" stroke="#8E8D8D" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <path d="M116 169 Q 125 172, 134 174 Q 132 165, 129 156" fill="none" stroke="#8E8D8D" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </span>{" "}now
+      </p>
+    </div>
+  );
+}
+
+/* ---------- score card ---------- */
+
+function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
+  const ps = [...team].sort(byName); // always alphabetical, not by who entered the score
+  return (
+    <div className={"sc-team" + (won ? " won" : " lost")}>
+      <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
+        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
+      </div>
+      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
+    </div>
+  );
+}
+
+function ScoreCard({ m }: { m: Match }) {
+  // Winner always on the left, so scores are shown from the winner's side.
+  const W = m.winner === "A" ? m.teamA : m.teamB, L = m.winner === "A" ? m.teamB : m.teamA;
+  const sets = m.sets.map(([a, b]) => (m.winner === "A" ? [a, b] : [b, a]));
+  return (
+    <article className="scard" aria-label={`${W.map(shortName).join(" & ")} beat ${L.map(shortName).join(" & ")}`}>
+      <div className="scard-row">
+        <TeamSide team={W} won />
+        <div className="sc-score">
+          {sets.map(([w, l], i) => (
+            <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>
+          ))}
+        </div>
+        <TeamSide team={L} won={false} />
+      </div>
+      {m.court && <div className="sc-court">{m.court.name}</div>}
+    </article>
+  );
+}
+
+/* ---------- pending scores ---------- */
+
+function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClose: () => void; onChanged: () => void }) {
+  const { me } = useSession(); const { toast, confirm } = useUi();
+  if (!me) return null;
+  const toAnswer = pending.filter((m) => m.teamB.some((p) => p.id === me.id));
+  const waiting = pending.filter((m) => m.teamA.some((p) => p.id === me.id));
   const act = async (m: Match, action: "accept" | "reject" | "delete") => {
     try {
       if (action === "delete") await api.del(`/matches/${m.id}`); else await api.post(`/matches/${m.id}/${action}`);
       toast(action === "accept" ? "Score accepted. Everyone in the match has been notified." : action === "reject" ? "Score rejected. Everyone in the match has been notified." : "Pending score deleted.");
-      loadPending(); refresh(); setMonth({ ...month });
+      onChanged();
     } catch (e: any) { toast(e.message); }
   };
   const actions = (m: Match) => {
@@ -54,170 +199,246 @@ export function Matches() {
         <button className="btn sm ok" onClick={() => act(m, "accept")}>Accept score</button>
       </div>
     );
-    if (m.submittedBy === me.id) return (
-      <div className="acts"><button className="btn sm ghost" onClick={() => confirm({ title: "Delete this pending score?", body: "Your opponents won't see it any more. You can enter the correct score again.", ok: "Delete", danger: true, onOk: () => act(m, "delete") })}>Delete & re-enter</button></div>
-    );
-    const sub = m.teamA.find((p) => p.id === m.submittedBy);
-    return <p className="small" style={{ marginTop: 8 }}>Your partner {sub?.first} entered this. Waiting for an opponent to accept.</p>;
+    if (m.submittedBy === me.id) return <div className="acts"><button className="btn sm ghost" onClick={() => confirm({ title: "Delete this pending score?", body: "Your opponents won't see it any more. You can enter the correct score again.", ok: "Delete", danger: true, onOk: () => act(m, "delete") })}>Delete & re-enter</button></div>;
+    return <p className="small" style={{ marginTop: 8 }}>Your partner entered this. Waiting for an opponent to accept.</p>;
   };
+  return (
+    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Pending scores">
+        <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={onClose}>×</button></div>
+        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
+        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
+        {pending.length === 0 && <div className="empty">Nothing pending. Every score has been answered.</div>}
+        <p className="small" style={{ textAlign: "center", marginTop: 6 }}>Scores not accepted within 7 days are rejected automatically.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- page ---------- */
+
+export function Matches() {
+  const { me } = useSession();
+  const today = lagosToday();
+  const [scope, setScope] = useState<"me" | "all">("me");
+  const [date, setDate] = useState(today);
+  const [list, setList] = useState<Match[] | null>(null);
+  const [days, setDays] = useState<{ first: string | null; days: string[] }>({ first: null, days: [] });
+  const [pending, setPending] = useState<Match[]>([]);
+  const [calOpen, setCalOpen] = useState(false);
+  const [pendOpen, setPendOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  const loadDay = useCallback(() => {
+    setList(null);
+    api.get<Match[]>(`/matches/day?date=${date}&scope=${scope}`).then(setList).catch(() => setList([]));
+  }, [date, scope]);
+  const loadPending = useCallback(() => api.get<Match[]>("/matches/pending").then(setPending).catch(() => {}), []);
+  const loadDays = useCallback(() => api.get<{ first: string | null; days: string[] }>(`/matches/days?scope=${scope}`).then(setDays).catch(() => {}), [scope]);
+  useEffect(() => { loadDay(); }, [loadDay]);
+  useEffect(() => { loadDays(); }, [loadDays]);
+  useEffect(() => { loadPending(); }, [loadPending]);
+
+  // The strip goes back to the first match ever logged (at least two weeks, so there's always room to slide).
+  const start = useMemo(() => {
+    const twoWeeks = addDaysISO(today, -MAX_BACKDATE_DAYS);
+    return days.first && days.first < twoWeeks ? days.first : twoWeeks;
+  }, [days.first, today]);
+  const dates = useMemo(() => datesBetween(start, today), [start, today]);
+  const marked = useMemo(() => new Set(days.days), [days.days]);
+
+  if (!me) return <Loading />;
+  const toAnswer = pending.filter((m) => m.teamB.some((p) => p.id === me.id)).length;
+  const waiting = pending.length - toAnswer;
 
   return (
     <>
-      <TopBar title="Matches" />
-      <main className="wide">
-       <div className="cols">
-       <section>
-        <button className="btn" style={{ marginBottom: 14 }} onClick={() => nav("/matches/new")}>+ Enter a score</button>
-        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
-        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
-        {toAnswer.length + waiting.length === 0 && pending !== null && <div className="hide-mobile"><div className="h2">Pending</div><div className="empty card">No scores waiting for an answer.</div></div>}
-       </section>
-       <section className="sticky-col">
-        <div className="h2">Results</div>
-        <div className="chips" style={{ marginBottom: 8 }}>
-          <button className={"chip" + (!filter.mine ? " on" : "")} onClick={() => setFilter({ ...filter, mine: false })}>Everyone</button>
-          <button className={"chip" + (filter.mine ? " on" : "")} onClick={() => setFilter({ ...filter, mine: true })}>My matches</button>
-        </div>
-        <div className="row" style={{ marginBottom: 10 }}>
-          <select className="inp" aria-label="Filter by player" value={filter.player} onChange={(e) => setFilter({ ...filter, player: e.target.value })}>
-            <option value="">Any player</option>{players.map((p) => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
-          </select>
-          <select className="inp" aria-label="Filter by court" value={filter.court} onChange={(e) => setFilter({ ...filter, court: e.target.value })}>
-            <option value="">Any court</option>{courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <Calendar month={month} onMonth={(m) => { setMonth(m); setSel(null); }} days={days} selected={sel} onSelect={setSel} />
-       </section>
-       <section className="list-col">
-        <div className="h2" style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>{sel ? new Date(sel + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "This month"}</span>
-          {sel && <button className="link" style={{ textTransform: "none" }} onClick={() => setSel(null)}>Show whole month</button>}
-        </div>
-        {list === null ? <Loading /> : shown.length ? <div className="cardgrid">{shown.map((m) => <MatchCard key={m.id} m={m} />)}</div> : <div className="empty">No confirmed matches here yet.</div>}
-       </section>
-       </div>
-      </main>
-      <BottomNav pending={toAnswer.length} />
+      <div className="mscreen">
+        <div className="mhead"><MeAllToggle value={scope} onChange={setScope} /></div>
+        <DateStrip dates={dates} selected={date} onSelect={setDate} marked={marked} today={today} onOpenCalendar={() => setCalOpen(true)} />
+        <main className="mmain">
+          {pending.length > 0 && (
+            <button className={"pbanner" + (toAnswer ? " urgent" : "")} onClick={() => setPendOpen(true)}>
+              <span>
+                {toAnswer > 0 && <b>{toAnswer} score{toAnswer === 1 ? "" : "s"} need{toAnswer === 1 ? "s" : ""} your answer</b>}
+                {toAnswer > 0 && waiting > 0 && " · "}
+                {waiting > 0 && `${waiting} waiting on opponent${waiting === 1 ? "" : "s"}`}
+              </span>
+              <span aria-hidden="true">›</span>
+            </button>
+          )}
+          {list === null ? <Loading /> : list.length === 0 ? <LoveLove /> : (
+            <>
+              {list.map((m) => <ScoreCard key={m.id} m={m} />)}
+              <button className="pnote" onClick={() => setPendOpen(true)}>Can't find a match? It might still be pending</button>
+            </>
+          )}
+        </main>
+        <button className="fab" aria-label="Add a score" onClick={() => setAdding(true)}>
+          <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 4v16M4 12h16" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" /></svg>
+        </button>
+      </div>
+      <BottomNav pending={toAnswer} />
+      {calOpen && <DatePickerModal selected={date} min={start} max={today} marked={marked} onClose={() => setCalOpen(false)} onPick={(d) => { setDate(d); setCalOpen(false); }} />}
+      {pendOpen && <PendingSheet pending={pending} onClose={() => setPendOpen(false)} onChanged={() => { loadPending(); loadDay(); loadDays(); }} />}
+      {adding && <AddScoreDrawer defaultDate={date} onClose={() => setAdding(false)} onSubmitted={() => { setAdding(false); loadPending(); }} />}
     </>
   );
 }
 
-/* ---------- enter a score ---------- */
+/* ---------- add score drawer (2 steps) ---------- */
 
 type Slot = "partner" | "opp0" | "opp1";
 
-export function NewMatch() {
-  const { me } = useSession(); const nav = useNavigate(); const { toast } = useUi();
+function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: string; onClose: () => void; onSubmitted: () => void }) {
+  const { me } = useSession(); const { toast } = useUi();
   const today = lagosToday();
+  const minDate = addDaysISO(today, -MAX_BACKDATE_DAYS);
+  const tooOld = defaultDate < minDate;
   const home = me?.courts.find((c) => c.role === "home" && c.status === "approved");
+
+  const [phase, setPhase] = useState<1 | 2>(1);
   const [type, setType] = useState<"singles" | "doubles">("singles");
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(tooOld ? today : defaultDate);
   const [courtId, setCourtId] = useState(home?.id ?? "");
   const [format, setFormat] = useState<FormatKey>("bo3");
+  const [courts, setCourts] = useState<CourtRef[]>([]);
   const [people, setPeople] = useState<Record<Slot, PublicUser | null>>({ partner: null, opp0: null, opp1: null });
   const [raw, setRaw] = useState<Array<[string, string]>>([["", ""], ["", ""], ["", ""]]);
-  const [courts, setCourts] = useState<CourtRef[]>([]);
   const [picker, setPicker] = useState<Slot | null>(null);
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { api.get<CourtRef[]>("/ref/courts").then(setCourts).catch(() => {}); }, []);
-  if (!me) return <Loading />;
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && !picker && onClose();
+    window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
+  }, [onClose, picker]);
+  if (!me) return null;
 
   const F = FORMATS[format];
+  const cols = F.kind === "stb" ? 1 : F.sets;
   const score = evalScore(format, raw);
-  const nameA = type === "doubles" ? [me.first, people.partner?.first].filter(Boolean).join(" & ") : me.first;
-  const nameB = [people.opp0?.first, type === "doubles" ? people.opp1?.first : null].filter(Boolean).join(" & ") || "Opponent";
   let thirdOff = true;
   if (F.sets === 3) {
     const s1 = evalScore("set6", [raw[0]]), s2 = evalScore("set6", [raw[1]]);
     thirdOff = !(s1.winner && s2.winner && s1.winner !== s2.winner);
   }
-  const ready = score.complete && !score.error && people.opp0 && (type === "singles" || (people.partner && people.opp1)) && courtId;
-  const rows = F.kind === "stb" ? 1 : F.sets;
+  const isD = type === "doubles";
+  const playersReady = !!people.opp0 && (!isD || (!!people.partner && !!people.opp1));
+  const ready = score.complete && !score.error && playersReady;
+  const setCell = (i: number, j: 0 | 1, v: string) =>
+    setRaw(raw.map((r, k) => (k === i ? (j === 0 ? [v.replace(/\D/g, "").slice(0, 2), r[1]] : [r[0], v.replace(/\D/g, "").slice(0, 2)]) : r)) as any);
+  const taken = [me.id, people.partner?.id, people.opp0?.id, people.opp1?.id].filter(Boolean) as string[];
+  const teamA = [me.first, isD ? people.partner?.first : null].filter(Boolean).join(" & ");
+  const teamB = [people.opp0?.first, isD ? people.opp1?.first : null].filter(Boolean).join(" & ") || (isD ? "Team 2" : "Player 2");
 
-  const setCell = (i: number, j: 0 | 1, v: string) => setRaw(raw.map((r, k) => (k === i ? (j === 0 ? [v.replace(/\D/g, "").slice(0, 2), r[1]] : [r[0], v.replace(/\D/g, "").slice(0, 2)]) : r)) as any);
-
+  const next = () => {
+    setErr("");
+    if (!courtId) return setErr("Choose the court you played on");
+    if (date < minDate || date > today) return setErr(`Pick a date within the last ${MAX_BACKDATE_DAYS} days`);
+    setPhase(2);
+  };
   const submit = async () => {
     setErr(""); setBusy(true);
     try {
       await api.post("/matches", {
         type, date, courtId, format,
-        partner: type === "doubles" ? people.partner?.id : undefined,
-        opponents: [people.opp0?.id, type === "doubles" ? people.opp1?.id : null].filter(Boolean),
-        sets: raw.slice(0, rows).map((r, i) => (F.sets === 3 && i === 2 && thirdOff ? ["", ""] : r)),
+        partner: isD ? people.partner?.id : undefined,
+        opponents: [people.opp0?.id, isD ? people.opp1?.id : null].filter(Boolean),
+        sets: raw.slice(0, cols).map((r, i) => (F.sets === 3 && i === 2 && thirdOff ? ["", ""] : r)),
       });
-      const opp = [people.opp0, type === "doubles" ? people.opp1 : null].filter(Boolean) as PublicUser[];
+      const opp = [people.opp0, isD ? people.opp1 : null].filter(Boolean) as PublicUser[];
       toast(`Score sent. ${opp.map((p) => p.first).join(" & ")} ${opp.length > 1 ? "have" : "has"} been notified.`);
-      nav("/matches");
+      onSubmitted();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
 
-  const slot = (label: string, key: Slot) => {
-    const u = people[key];
-    return (
-      <button className={"slot" + (u ? " filled" : "")} onClick={() => setPicker(key)}>
-        {u ? <Avatar u={u} size={36} /> : <span className="av" style={{ width: 36, height: 36, display: "grid", placeItems: "center", color: "#aaa", fontSize: 20 }}>+</span>}
-        <div style={{ flex: 1 }}><div className="lb">{label}</div><div style={{ fontWeight: 600 }}>{u ? fullName(u) : "Choose player"}</div>{u && <div className="id">{u.pid}</div>}</div>
-      </button>
-    );
-  };
-  const taken = [me.id, people.partner?.id, people.opp0?.id, people.opp1?.id].filter(Boolean) as string[];
+  const playerRow = (u: PublicUser | null, label: string, slot?: Slot) => u ? (
+    <button className="se-row" disabled={!slot} onClick={() => slot && setPicker(slot)}>
+      <Avatar u={u} size={40} />
+      <span className="se-who"><b>{fullName(u)}</b><small>{label}</small></span>
+      {slot && <span className="se-change">Change</span>}
+    </button>
+  ) : (
+    <button className="se-row" onClick={() => slot && setPicker(slot)}>
+      <span className="se-plus" aria-hidden="true">+</span>
+      <span className="se-who"><b>Add Player</b><small>{label}</small></span>
+    </button>
+  );
 
   return (
-    <>
-      <TopBar title="Enter a score" back="/matches" />
-      <main className="narrow">
-        <div className="card">
-          <label className="f" style={{ marginTop: 0 }}>Match type</label>
-          <div className="seg">
-            {(["singles", "doubles"] as const).map((t) => (
-              <button key={t} className={type === t ? "on" : ""} onClick={() => { setType(t); if (t === "singles") setPeople({ ...people, partner: null, opp1: null }); }}>{t === "singles" ? "Singles" : "Doubles"}</button>
-            ))}
-          </div>
-          <label className="f">Date</label>
-          <input className="inp" type="date" value={date} min={addDaysISO(today, -14)} max={today} onChange={(e) => setDate(e.target.value)} />
-          <div className="hint">Up to 14 days back.</div>
-          <label className="f">Court</label>
-          <select className="inp" value={courtId} onChange={(e) => setCourtId(e.target.value)}>
-            <option value="">Choose court…</option>
-            {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <label className="f">Format</label>
-          <div className="chips">
-            {(Object.keys(FORMATS) as FormatKey[]).map((k) => <button key={k} className={"chip" + (format === k ? " on" : "")} onClick={() => { setFormat(k); setRaw([["", ""], ["", ""], ["", ""]]); }}>{FORMATS[k].label}</button>)}
-          </div>
-          <div className="hint">{F.sub}</div>
+    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet addsheet" role="dialog" aria-modal="true" aria-label="Add a score">
+        <div className="grabber" aria-hidden="true" />
+        <div className="sheet-head">
+          <h3>{phase === 1 ? "Add a score" : "Players & score"}</h3>
+          <span className="small">Step {phase} of 2</span>
+          <button className="xbtn" aria-label="Close" onClick={onClose}>×</button>
         </div>
 
-        <div className="h2">Players</div>
-        <div className="slot filled"><Avatar u={me} size={36} /><div style={{ flex: 1 }}><div className="lb">You</div><div style={{ fontWeight: 600 }}>{fullName(me)}</div><div className="id">{me.pid}</div></div></div>
-        {type === "doubles" && slot("Your partner", "partner")}
-        {slot(type === "doubles" ? "Opponent 1" : "Opponent", "opp0")}
-        {type === "doubles" && slot("Opponent 2", "opp1")}
-
-        <div className="h2">Score</div>
-        <div className="card">
-          <div className="teamhead"><span /><span>{nameA}</span><span>{nameB}</span></div>
-          {Array.from({ length: rows }, (_, i) => {
-            const off = F.sets === 3 && i === 2 && thirdOff;
-            return (
-              <div className="setrow" key={i} style={{ opacity: off ? 0.35 : 1 }}>
-                <span className="lbl">{F.kind === "stb" ? "Points" : `Set ${i + 1}`}{F.sets === 3 && i === 2 && <div className="small" style={{ fontWeight: 400 }}>if 1-1</div>}</span>
-                <input className="inp" inputMode="numeric" aria-label={`${nameA} ${F.kind === "stb" ? "points" : `set ${i + 1}`}`} disabled={off} value={off ? "" : raw[i][0]} onChange={(e) => setCell(i, 0, e.target.value)} />
-                <input className="inp" inputMode="numeric" aria-label={`${nameB} ${F.kind === "stb" ? "points" : `set ${i + 1}`}`} disabled={off} value={off ? "" : raw[i][1]} onChange={(e) => setCell(i, 1, e.target.value)} />
+        {phase === 1 ? (
+          <>
+            <label className="f" style={{ marginTop: 0 }}>Match type</label>
+            <div className="seg">
+              {(["singles", "doubles"] as const).map((t) => (
+                <button key={t} className={type === t ? "on" : ""} onClick={() => setType(t)}>{t === "singles" ? "Singles" : "Doubles"}</button>
+              ))}
+            </div>
+            <label className="f">Date</label>
+            <input className="inp" type="date" value={date} min={minDate} max={today} onChange={(e) => setDate(e.target.value)} />
+            {tooOld && <div className="hint">Scores can only be logged for the last {MAX_BACKDATE_DAYS} days, so this is set to today.</div>}
+            <label className="f">Court</label>
+            <select className="inp" value={courtId} onChange={(e) => setCourtId(e.target.value)}>
+              <option value="">Choose court…</option>
+              {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <label className="f">Format</label>
+            <div className="chips">
+              {(Object.keys(FORMATS) as FormatKey[]).map((k) => <button key={k} className={"chip" + (format === k ? " on" : "")} onClick={() => { setFormat(k); setRaw([["", ""], ["", ""], ["", ""]]); }}>{FORMATS[k].label}</button>)}
+            </div>
+            <div className="hint">{F.sub}</div>
+            <ErrorText msg={err} />
+            <button className="btn" style={{ marginTop: 18 }} onClick={next}>Continue</button>
+          </>
+        ) : (
+          <>
+            <div className="se">
+              {playerRow(me, isD ? "TEAM 1" : "PLAYER 1")}
+              {isD && playerRow(people.partner, "TEAM 1", "partner")}
+              <div className="se-score" style={{ gridTemplateColumns: `repeat(${cols}, 56px)` }}>
+                {Array.from({ length: cols }, (_, i) => {
+                  const off = F.sets === 3 && i === 2 && thirdOff;
+                  const label = F.kind === "stb" ? "TIE-BREAK" : `SET ${i + 1}`;
+                  return (
+                    <div key={i} className="se-col" style={{ opacity: off ? 0.35 : 1 }}>
+                      <span className="se-lbl">{label}</span>
+                      <input inputMode="numeric" aria-label={`${teamA}, ${label}`} disabled={off} value={off ? "" : raw[i][0]} onChange={(e) => setCell(i, 0, e.target.value)} />
+                      <input inputMode="numeric" aria-label={`${teamB}, ${label}`} disabled={off} value={off ? "" : raw[i][1]} onChange={(e) => setCell(i, 1, e.target.value)} />
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-          {score.error ? <div className="err">{score.error}</div> : score.winner && (
-            <div style={{ marginTop: 6, fontWeight: 700, color: "var(--ok)" }}>🏆 {score.winner === "A" ? nameA : nameB} {(score.winner === "A" ? nameA : nameB).includes("&") ? "win" : "wins"} {scoreLine(score.sets, score.winner)}</div>
-          )}
-          <p className="hint">{F.kind === "stb" ? "First to 10, won by 2 (e.g. 10-8, 12-10)." : F.target === 6 ? "At 6-6 a tie-break is played: enter it as 7-6." : "At 4-4 a tie-break is played: enter it as 5-4."}</p>
-        </div>
-        <ErrorText msg={err} />
-        <button className="btn" disabled={!ready || busy} onClick={submit}>{busy ? "Sending…" : "Submit for confirmation"}</button>
-        <p className="hint" style={{ textAlign: "center", marginTop: 8 }}>{type === "doubles" ? "One opponent needs to accept within 7 days." : "Your opponent needs to accept within 7 days."}</p>
-      </main>
+              {playerRow(people.opp0, isD ? "TEAM 2" : "PLAYER 2", "opp0")}
+              {isD && playerRow(people.opp1, "TEAM 2", "opp1")}
+            </div>
+            <p className="hint" style={{ textAlign: "center" }}>
+              Top boxes: {teamA}. Bottom boxes: {teamB}.{" "}
+              {F.kind === "stb" ? "First to 10, won by 2." : F.target === 6 ? "At 6-6, enter the tie-break set as 7-6." : "At 4-4, enter the tie-break set as 5-4."}
+              {F.sets === 3 && " Set 3 opens at one set all."}
+            </p>
+            {score.error ? <div className="err" style={{ textAlign: "center" }}>{score.error}</div> : score.winner && playersReady && (
+              <div style={{ textAlign: "center", fontWeight: 700, color: "var(--ok)", marginTop: 4 }}>🏆 {score.winner === "A" ? teamA : teamB} {(score.winner === "A" ? teamA : teamB).includes("&") ? "win" : "wins"}</div>
+            )}
+            <ErrorText msg={err} />
+            <div className="row" style={{ marginTop: 16 }}>
+              <button className="btn ghost" onClick={() => { setErr(""); setPhase(1); }}>Back</button>
+              <button className="btn" disabled={!ready || busy} onClick={submit}>{busy ? "Sending…" : "Submit score"}</button>
+            </div>
+            <p className="hint" style={{ textAlign: "center", marginTop: 8 }}>{isD ? "One opponent needs to accept within 7 days." : "Your opponent needs to accept within 7 days."}</p>
+          </>
+        )}
+      </div>
       {picker && <PlayerPicker exclude={taken} onClose={() => setPicker(null)} onPick={(u) => { setPeople({ ...people, [picker]: u }); setPicker(null); }} />}
-    </>
+    </div>
   );
 }
 
@@ -236,9 +457,9 @@ function PlayerPicker({ exclude, onPick, onClose }: { exclude: string[]; onPick:
   );
   const filt = (l: PublicUser[] | null) => (l ?? []).filter((u) => !exclude.includes(u.id));
   return (
-    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet" role="dialog" aria-label="Add player">
-        <h3>Add player</h3>
+    <div className="sheet-bg" style={{ zIndex: 25 }} onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Add player">
+        <div className="sheet-head"><h3>Add player</h3><button className="xbtn" aria-label="Close" onClick={onClose}>×</button></div>
         <input className="inp" autoFocus placeholder="Search first name, last name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
         <ErrorText msg={err} />
         <div style={{ marginTop: 6 }}>

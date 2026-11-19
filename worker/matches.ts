@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { evalScore, FORMATS, lagosToday, matchDateError, PENDING_DAYS, scoreLine, type FormatKey } from "../shared/rules";
+import { evalScore, FORMATS, isISODate, lagosToday, matchDateError, PENDING_DAYS, scoreLine, type FormatKey } from "../shared/rules";
 import { requireUser } from "./auth";
 import { bad, fullName, HttpError, newId, now, str, type AppEnv, type Env } from "./lib";
 import { notify } from "./notify";
@@ -26,6 +26,29 @@ matches.get("/matches", requireUser(), async (c) => {
   const court = c.req.query("court");
   if (court) { where.push("m.court_id = ?"); binds.push(court); }
   return c.json(await loadMatches(c.env, "WHERE " + where.join(" AND "), binds));
+});
+
+/** Confirmed matches on one day. scope=me → only matches I played in; scope=all → everyone's. */
+matches.get("/matches/day", requireUser(), async (c) => {
+  const me = c.get("user");
+  const date = c.req.query("date") ?? "";
+  if (!isISODate(date)) throw bad("Bad date");
+  const mine = c.req.query("scope") === "me";
+  const where = mine
+    ? "JOIN match_players me ON me.match_id = m.id WHERE m.status = 'confirmed' AND m.match_date = ? AND me.user_id = ?"
+    : "WHERE m.status = 'confirmed' AND m.match_date = ?";
+  return c.json(await loadMatches(c.env, where, mine ? [date, me.id] : [date], "ORDER BY m.resolved_at DESC"));
+});
+
+/** Dates that have confirmed matches (for the dots on the date strip) and the earliest one (how far back the strip goes). */
+matches.get("/matches/days", requireUser(), async (c) => {
+  const me = c.get("user");
+  const mine = c.req.query("scope") === "me";
+  const { results } = mine
+    ? await c.env.DB.prepare("SELECT DISTINCT m.match_date AS d FROM matches m JOIN match_players p ON p.match_id = m.id WHERE m.status = 'confirmed' AND p.user_id = ? ORDER BY d").bind(me.id).all<{ d: string }>()
+    : await c.env.DB.prepare("SELECT DISTINCT match_date AS d FROM matches WHERE status = 'confirmed' ORDER BY d").all<{ d: string }>();
+  const first = await c.env.DB.prepare("SELECT MIN(match_date) AS d FROM matches WHERE status = 'confirmed'").first<{ d: string | null }>();
+  return c.json({ first: first?.d ?? null, days: results.map((r) => r.d) });
 });
 
 /** My pending matches: ones I must answer, and ones waiting on my opponents. */

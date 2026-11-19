@@ -143,9 +143,10 @@ export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export function Calendar({ month, onMonth, days, selected, onSelect }: {
+export function Calendar({ month, onMonth, days, selected, onSelect, min, max }: {
   month: { y: number; m: number }; onMonth: (m: { y: number; m: number }) => void;
   days: Set<string>; selected: string | null; onSelect: (d: string | null) => void;
+  min?: string; max?: string; // YYYY-MM-DD; days outside are disabled
 }) {
   const first = new Date(month.y, month.m, 1), start = (first.getDay() + 6) % 7;
   const weeks = Math.ceil((start + new Date(month.y, month.m + 1, 0).getDate()) / 7);
@@ -163,7 +164,8 @@ export function Calendar({ month, onMonth, days, selected, onSelect }: {
         {Array.from({ length: weeks * 7 }, (_, i) => {
           const d = new Date(month.y, month.m, 1 - start + i), s = iso(d), out = d.getMonth() !== month.m;
           return (
-            <button key={s} className={[out && "out", s === today && "today", selected === s && "sel"].filter(Boolean).join(" ")} onClick={() => onSelect(selected === s ? null : s)}>
+            <button key={s} disabled={(!!min && s < min) || (!!max && s > max)} aria-pressed={selected === s}
+              className={[out && "out", s === today && "today", selected === s && "sel"].filter(Boolean).join(" ")} onClick={() => onSelect(selected === s ? null : s)}>
               {d.getDate()}{days.has(s) && <i className="dot" />}
             </button>
           );
