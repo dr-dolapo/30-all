@@ -16,8 +16,8 @@
     {
       "binding": "DB",
       "database_name": "thirty-all-db",
-      // Replace with the id printed by: npx wrangler d1 create thirty-all-db
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Production database (created in the Cloudflare dashboard)
+      "database_id": "e9a3eb40-2630-4aef-a496-ebeae0e8afcc",
       "migrations_dir": "migrations"
     }
   ],
