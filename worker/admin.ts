@@ -4,7 +4,7 @@ import { ageOn, isISODate, MIN_AGE } from "../shared/rules";
 import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { notify } from "./notify";
-import { photoUrl } from "./queries";
+import { photoUrl, recordFor, userCourts, userRacquets } from "./queries";
 
 export const admin = new Hono<AppEnv>();
 admin.use("*", requireUser({ admin: true }));
@@ -97,7 +97,7 @@ admin.post("/courts/:id/merge", async (c) => {
 
 admin.get("/users", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT u.id, u.pid, u.first_name AS first, u.last_name AS last, u.email, u.whatsapp, u.gender, u.dob, u.status, u.is_admin AS isAdmin,
+    `SELECT u.id, u.pid, u.first_name AS first, u.last_name AS last, u.email, u.whatsapp, u.gender, u.status, u.is_admin AS isAdmin,
        u.photo_key, u.avatar, u.created_at AS createdAt, hc.id AS homeCourtId, hc.name AS homeCourtName, hc.status AS homeCourtStatus
      FROM users u
      LEFT JOIN user_courts uc ON uc.user_id = u.id AND uc.role = 'home'
@@ -105,6 +105,29 @@ admin.get("/users", async (c) => {
      WHERE u.status != 'deleted' ORDER BY u.first_name, u.last_name`,
   ).all<any>();
   return c.json(results.map((r) => ({ ...r, isAdmin: !!r.isAdmin, photoUrl: photoUrl(r.photo_key), photo_key: undefined })));
+});
+
+/** Full profile for the admin "Edit" page. Date of birth is left out: it's fetched separately when the admin reveals it. */
+admin.get("/users/:id", async (c) => {
+  const id = c.req.param("id");
+  const u = await c.env.DB.prepare(
+    `SELECT id, pid, first_name AS first, last_name AS last, email, status, is_admin AS isAdmin, gender, nationality, whatsapp,
+       height_cm AS heightCm, height_unit AS heightUnit, hand, backhand, fav_shot AS shot, avatar, photo_key, created_at AS createdAt
+     FROM users WHERE id = ? AND status != 'deleted'`,
+  ).bind(id).first<any>();
+  if (!u) throw new HttpError(404, "Player not found");
+  const [courts, racquets, rec] = await Promise.all([userCourts(c.env, id), userRacquets(c.env, id), recordFor(c.env, id)]);
+  return c.json({
+    ...u, isAdmin: !!u.isAdmin, photoUrl: photoUrl(u.photo_key), photo_key: undefined,
+    courts, racquets, record: { played: rec.played, won: rec.won, lost: rec.lost, form: rec.form },
+  });
+});
+
+/** Reveals date of birth and age (the admin clicked the eye icon). */
+admin.get("/users/:id/dob", async (c) => {
+  const u = await c.env.DB.prepare("SELECT dob FROM users WHERE id = ? AND status != 'deleted'").bind(c.req.param("id")).first<{ dob: string | null }>();
+  if (!u) throw new HttpError(404, "Player not found");
+  return c.json({ dob: u.dob, age: u.dob ? ageOn(u.dob, new Date()) : null });
 });
 
 admin.patch("/users/:id", async (c) => {
