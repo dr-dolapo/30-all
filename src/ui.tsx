@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { avatarSVG } from "../shared/avatars";
 import { FORMATS } from "../shared/rules";
@@ -37,18 +37,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
     <UiCtx.Provider value={{ toast: setMsg, confirm: setDlg }}>
       {children}
       {msg && <div className="toast" role="status">{msg}</div>}
-      {dlg && (
-        <div className="dialog-bg" onClick={(e) => e.target === e.currentTarget && setDlg(null)}>
-          <div className="dialog" role="dialog" aria-modal="true">
-            <h3>{dlg.title}</h3>
-            <div style={{ color: "var(--ink2)", marginBottom: 16 }}>{dlg.body}</div>
-            <div className="row">
-              <button className="btn ghost" onClick={() => setDlg(null)}>Cancel</button>
-              <button className={"btn" + (dlg.danger ? " bad" : "")} onClick={async () => { const d = dlg; setDlg(null); await d.onOk(); }}>{dlg.ok}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {dlg && <ConfirmDialog key={dlg.title} opts={dlg} onDone={() => setDlg(null)} />}
     </UiCtx.Provider>
   );
 }
@@ -234,4 +223,45 @@ export function useThemeColor(color: string) {
     meta?.setAttribute("content", color);
     return () => meta?.setAttribute("content", "#FFFFFF");
   }, [color]);
+}
+
+/**
+ * Enter/exit for overlays (sheets, dialogs). Renders with data-state="enter", flips to "open" on the next frame
+ * so CSS transitions run, and on close plays the exit before unmounting. CSS owns the motion.
+ */
+export function usePresence(onClose: () => void, exitMs = 240) {
+  const [state, setState] = useState<"enter" | "open" | "exit">("enter");
+  const closing = useRef(false);
+  useEffect(() => {
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setState("open")); });
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+  }, []);
+  const close = useCallback((after?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    setState("exit");
+    setTimeout(() => (after ?? onClose)(), exitMs);
+  }, [onClose, exitMs]);
+  return { state, close };
+}
+
+function ConfirmDialog({ opts, onDone }: { opts: DialogOpts; onDone: () => void }) {
+  const { state, close } = usePresence(onDone, 160);
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
+  }, [close]);
+  return (
+    <div className="dialog-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="dialog" role="dialog" aria-modal="true" data-state={state}>
+        <h3>{opts.title}</h3>
+        <div style={{ color: "var(--ink2)", marginBottom: 16 }}>{opts.body}</div>
+        <div className="row">
+          <button className="btn ghost" onClick={() => close()}>Cancel</button>
+          <button className={"btn" + (opts.danger ? " bad" : "")} onClick={() => { close(); opts.onOk(); }}>{opts.ok}</button>
+        </div>
+      </div>
+    </div>
+  );
 }

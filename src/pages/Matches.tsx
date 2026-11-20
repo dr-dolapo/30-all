@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, useSession, useThemeColor, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, usePresence, useSession, useThemeColor, useUi } from "../ui";
 import { CalendarDots, CaretRight, Plus, Trophy, X } from "../icons";
 
 /* ---------- helpers ---------- */
@@ -86,17 +86,18 @@ function DateStrip({ dates, selected, onSelect, marked, today, onOpenCalendar }:
 function DatePickerModal({ selected, min, max, marked, onPick, onClose }: {
   selected: string; min: string; max: string; marked: Set<string>; onPick: (d: string) => void; onClose: () => void;
 }) {
+  const { state, close } = usePresence(onClose, 160);
   const d = parse(selected);
   const [month, setMonth] = useState({ y: d.getUTCFullYear(), m: d.getUTCMonth() });
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
+  }, [close]);
   return (
-    <div className="dialog-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog datepick" role="dialog" aria-modal="true" aria-label="Pick a date">
-        <Calendar month={month} onMonth={setMonth} days={marked} selected={selected} min={min} max={max} onSelect={(x) => { if (x) onPick(x); }} />
-        <button className="btn ghost" style={{ marginTop: 12 }} onClick={onClose}>Close</button>
+    <div className="dialog-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="dialog datepick" data-state={state} role="dialog" aria-modal="true" aria-label="Pick a date">
+        <Calendar month={month} onMonth={setMonth} days={marked} selected={selected} min={min} max={max} onSelect={(x) => { if (x) close(() => onPick(x)); }} />
+        <button className="btn ghost" style={{ marginTop: 12 }} onClick={() => close()}>Close</button>
       </div>
     </div>
   );
@@ -142,6 +143,7 @@ function LoveLove() {
 
 function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClose: () => void; onChanged: () => void }) {
   const { me } = useSession(); const { toast, confirm } = useUi();
+  const { state, close } = usePresence(onClose, 280);
   if (!me) return null;
   const toAnswer = pending.filter((m) => m.teamB.some((p) => p.id === me.id));
   const waiting = pending.filter((m) => m.teamA.some((p) => p.id === me.id));
@@ -163,9 +165,9 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
     return <p className="small" style={{ marginTop: 8 }}>Your partner entered this. Waiting for an opponent to accept.</p>;
   };
   return (
-    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="Pending scores">
-        <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button></div>
+    <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Pending scores">
+        <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
         {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
         {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
         {pending.length === 0 && <div className="empty">Nothing pending. Every score has been answered.</div>}
@@ -253,6 +255,7 @@ type Slot = "partner" | "opp0" | "opp1";
 
 function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: string; onClose: () => void; onSubmitted: () => void }) {
   const { me } = useSession(); const { toast } = useUi();
+  const { state, close } = usePresence(onClose, 280);
   const today = lagosToday();
   const minDate = addDaysISO(today, -MAX_BACKDATE_DAYS);
   const tooOld = defaultDate < minDate;
@@ -270,9 +273,9 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { api.get<CourtRef[]>("/ref/courts").then(setCourts).catch(() => {}); }, []);
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && !picker && onClose();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && !picker && close();
     window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
-  }, [onClose, picker]);
+  }, [close, picker]);
   if (!me) return null;
 
   const F = FORMATS[format];
@@ -309,7 +312,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
       });
       const opp = [people.opp0, isD ? people.opp1 : null].filter(Boolean) as PublicUser[];
       toast(`Score sent. ${opp.map((p) => p.first).join(" & ")} ${opp.length > 1 ? "have" : "has"} been notified.`);
-      onSubmitted();
+      close(onSubmitted);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
 
@@ -327,13 +330,13 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
   );
 
   return (
-    <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet addsheet" role="dialog" aria-modal="true" aria-label="Add a score">
+    <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="sheet addsheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add a score">
         <div className="grabber" aria-hidden="true" />
         <div className="sheet-head">
           <h3>{phase === 1 ? "Add a score" : "Players & score"}</h3>
           <span className="small">Step {phase} of 2</span>
-          <button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button>
+          <button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button>
         </div>
 
         {phase === 1 ? (
@@ -404,6 +407,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
 }
 
 function PlayerPicker({ exclude, onPick, onClose }: { exclude: string[]; onPick: (u: PublicUser) => void; onClose: () => void }) {
+  const { state, close } = usePresence(onClose, 280);
   const [q, setQ] = useState(""); const [favs, setFavs] = useState<PublicUser[] | null>(null); const [res, setRes] = useState<PublicUser[] | null>(null); const [err, setErr] = useState("");
   useEffect(() => { api.get<PublicUser[]>("/favourites").then(setFavs).catch(() => setFavs([])); }, []);
   useEffect(() => {
@@ -412,15 +416,15 @@ function PlayerPicker({ exclude, onPick, onClose }: { exclude: string[]; onPick:
     return () => clearTimeout(t);
   }, [q]);
   const row = (u: PublicUser) => (
-    <div className="pl" key={u.id} style={{ cursor: "pointer" }} onClick={() => onPick(u)}>
+    <div className="pl" key={u.id} style={{ cursor: "pointer" }} onClick={() => close(() => onPick(u))}>
       <Avatar u={u} size={38} /><div className="grow"><div className="nm">{fullName(u)}</div><div className="id">{u.pid}{u.homeCourt ? ` · ${u.homeCourt}` : ""}</div></div>
     </div>
   );
   const filt = (l: PublicUser[] | null) => (l ?? []).filter((u) => !exclude.includes(u.id));
   return (
-    <div className="sheet-bg" style={{ zIndex: 25 }} onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="Add player">
-        <div className="sheet-head"><h3>Add player</h3><button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button></div>
+    <div className="sheet-bg" data-state={state} style={{ zIndex: 25 }} onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) close(); }}>
+      <div className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add player">
+        <div className="sheet-head"><h3>Add player</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
         <input className="inp" autoFocus placeholder="Search first name, last name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
         <ErrorText msg={err} />
         <div style={{ marginTop: 6 }}>
