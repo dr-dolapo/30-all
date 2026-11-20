@@ -4,7 +4,7 @@ import { ageOn, isISODate, MIN_AGE } from "../shared/rules";
 import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { notify } from "./notify";
-import { photoUrl, recordFor, userCourts, userRacquets } from "./queries";
+import { loadMatches, photoUrl, recordFor, userCourts, userRacquets } from "./queries";
 
 export const admin = new Hono<AppEnv>();
 admin.use("*", requireUser({ admin: true }));
@@ -206,4 +206,62 @@ admin.delete("/users/:id/photo", async (c) => {
   await notify(c.env, (p) => c.executionCtx.waitUntil(p), [id],
     "An admin removed your profile photo because it didn't meet our guidelines. You can upload another or pick an avatar.", { subject: "Your profile photo was removed" });
   return c.json({ ok: true });
+});
+
+/* ---------- matches (view only) ---------- */
+
+const MATCH_STATUSES = ["confirmed", "pending", "rejected", "expired"] as const;
+
+/** Builds the shared WHERE clause for the admin match list from the query string (everything except status). */
+function matchFilters(q: (k: string) => string | undefined) {
+  const where: string[] = [];
+  const binds: unknown[] = [];
+  const search = (q("q") ?? "").trim();
+  if (search) {
+    where.push(`EXISTS (SELECT 1 FROM match_players sp JOIN users su ON su.id = sp.user_id WHERE sp.match_id = m.id
+      AND (su.first_name || ' ' || su.last_name LIKE ? OR su.pid LIKE ?))`);
+    binds.push(`%${search}%`, `${search.toUpperCase()}%`);
+  }
+  const from = q("from"), to = q("to");
+  if (from) { if (!isISODate(from)) throw bad("Bad from date"); where.push("m.match_date >= ?"); binds.push(from); }
+  if (to) { if (!isISODate(to)) throw bad("Bad to date"); where.push("m.match_date <= ?"); binds.push(to); }
+  const court = q("court");
+  if (court) { where.push("m.court_id = ?"); binds.push(court); }
+  const type = q("type");
+  if (type) { if (type !== "singles" && type !== "doubles") throw bad("Bad match type"); where.push("m.type = ?"); binds.push(type); }
+  return { where, binds };
+}
+
+/** Every match, newest first, with filters and per-status totals for the same filters. */
+admin.get("/matches", async (c) => {
+  const q = (k: string) => c.req.query(k) || undefined;
+  const { where, binds } = matchFilters(q);
+  const status = q("status");
+  if (status && !(MATCH_STATUSES as readonly string[]).includes(status)) throw bad("Bad status");
+  const limit = Math.min(100, Math.max(1, parseInt(q("limit") ?? "30", 10) || 30));
+  const offset = Math.max(0, parseInt(q("offset") ?? "0", 10) || 0);
+
+  const base = where.length ? "WHERE " + where.join(" AND ") : "";
+  const { results: counts } = await c.env.DB.prepare(`SELECT m.status AS s, COUNT(*) AS n FROM matches m ${base} GROUP BY m.status`)
+    .bind(...binds).all<{ s: string; n: number }>();
+  const totals = { all: 0, confirmed: 0, pending: 0, rejected: 0, expired: 0 } as Record<string, number>;
+  for (const r of counts) { totals[r.s] = r.n; totals.all += r.n; }
+
+  const listWhere = status ? [...where, "m.status = ?"] : where;
+  const listBinds = status ? [...binds, status] : binds;
+  const items = await loadMatches(c.env, listWhere.length ? "WHERE " + listWhere.join(" AND ") : "", listBinds,
+    `ORDER BY m.match_date DESC, m.submitted_at DESC LIMIT ${limit + 1} OFFSET ${offset}`);
+  const more = items.length > limit;
+  return c.json({ items: items.slice(0, limit), totals, next: more ? offset + limit : null });
+});
+
+/** One match with who submitted and who settled it. */
+admin.get("/matches/:id", async (c) => {
+  const [m] = await loadMatches(c.env, "WHERE m.id = ?", [c.req.param("id")]);
+  if (!m) throw new HttpError(404, "Match not found");
+  const row = await c.env.DB.prepare("SELECT resolved_by FROM matches WHERE id = ?").bind(m.id).first<{ resolved_by: string | null }>();
+  const who = async (id: string | null) => id
+    ? await c.env.DB.prepare("SELECT id, first_name AS first, last_name AS last, pid, status FROM users WHERE id = ?").bind(id).first()
+    : null;
+  return c.json({ ...m, submitter: await who(m.submittedBy), resolver: await who(row?.resolved_by ?? null) });
 });

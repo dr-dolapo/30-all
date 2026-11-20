@@ -2,6 +2,7 @@ import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Admin, AdminUserPage } from "./pages/Admin";
+import { AdminMatchPage } from "./pages/AdminMatches";
 import { Forgot, Login, Signup, Verify, Welcome } from "./pages/Auth";
 import { Matches } from "./pages/Matches";
 import { EditProfile, Inbox, MyProfile } from "./pages/Me";
@@ -42,6 +43,7 @@ function App() {
         <Route path="/me/edit" element={<Gate need="active"><EditProfile /></Gate>} />
         <Route path="/admin" element={<Gate need="active"><Admin /></Gate>} />
         <Route path="/admin/users/:id" element={<Gate need="active"><AdminUserPage /></Gate>} />
+        <Route path="/admin/matches/:id" element={<Gate need="active"><AdminMatchPage /></Gate>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

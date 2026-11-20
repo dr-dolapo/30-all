@@ -3,15 +3,17 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
 import { Eye, EyeSlash } from "../icons";
+import { AdminMatches } from "./AdminMatches";
 import { Avatar, ErrorText, RecordBlock, useThemeColor, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
-type Tab = "courts" | "users" | "photos";
+type Tab = "courts" | "users" | "matches" | "photos";
+const TABS: Tab[] = ["courts", "users", "matches", "photos"];
 
 export function Admin() {
   const { me } = useSession(); const nav = useNavigate();
   useThemeColor("#111111");
   const [params, setParams] = useSearchParams();
-  const tab = (["courts", "users", "photos"].includes(params.get("tab") ?? "") ? params.get("tab") : "courts") as Tab;
+  const tab = ((TABS as string[]).includes(params.get("tab") ?? "") ? params.get("tab") : "courts") as Tab;
   const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
   if (!me) return <Loading />;
   if (!me.isAdmin) return <><TopBar title="Admin" back="/me" /><main><div className="empty">Admins only.</div></main></>;
@@ -20,10 +22,11 @@ export function Admin() {
       <TopBar title="Admin" dark right={<button className="btn sm" onClick={() => nav("/me")}>Exit</button>} />
       <main className="wide">
         <div className="seg admin-seg" role="tablist" aria-label="Admin sections">
-          {(["courts", "users", "photos"] as Tab[]).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
+          {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
         </div>
         {tab === "courts" && <Courts />}
         {tab === "users" && <Users />}
+        {tab === "matches" && <MatchesTab />}
         {tab === "photos" && <Photos />}
       </main>
     </>
@@ -111,6 +114,8 @@ interface AdminUser {
 }
 
 /** Approved courts for the home-court dropdowns, grouped by state. */
+function MatchesTab() { return <AdminMatches courts={useApprovedCourts()} />; }
+
 function useApprovedCourts() {
   const [courts, setCourts] = useState<AdminCourt[]>([]);
   useEffect(() => { api.get<AdminCourt[]>("/admin/courts").then((cs) => setCourts(cs.filter((c) => c.status === "approved"))).catch(() => {}); }, []);
