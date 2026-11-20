@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { STATES } from "../shared/data";
-import { ageOn, isISODate, MIN_AGE } from "../shared/rules";
+import { addDaysISO, ageOn, isISODate, lagosToday, MIN_AGE } from "../shared/rules";
 import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { notify } from "./notify";
@@ -265,3 +265,83 @@ admin.get("/matches/:id", async (c) => {
     : null;
   return c.json({ ...m, submitter: await who(m.submittedBy), resolver: await who(row?.resolved_by ?? null) });
 });
+
+/* ---------- home dashboard ---------- */
+
+const DAY_MS = 86400_000;
+const PENDING_DAYS = 7;
+// a timestamp (ms) as a Lagos calendar date, in SQL
+const lagosDay = (col: string) => `date(${col} / 1000 + 3600, 'unixepoch')`;
+
+/** Everything the admin Home tab shows, in one request. */
+admin.get("/stats", async (c) => {
+  const db = c.env.DB;
+  const t = Date.now();
+  const today = lagosToday();
+  const start14 = addDaysISO(today, -13);
+  const start30 = addDaysISO(today, -29);
+  const PLAYER = "status IN ('active','suspended')"; // finished sign-up and not deleted
+
+  const [players, gender, courts, newByDay, before, wap, wapPrev, matchesByDay, funnel, topCourts, topPlayers, courtQueue, expiring] = await Promise.all([
+    db.prepare(`SELECT COUNT(*) AS n FROM users WHERE ${PLAYER}`).first<{ n: number }>(),
+    db.prepare(`SELECT COALESCE(gender, 'Not set') AS g, COUNT(*) AS n FROM users WHERE ${PLAYER} GROUP BY g`).all<{ g: string; n: number }>(),
+    db.prepare(`SELECT COUNT(DISTINCT uc.court_id) AS n FROM user_courts uc JOIN courts ct ON ct.id = uc.court_id JOIN users u ON u.id = uc.user_id
+      WHERE ct.status = 'approved' AND u.${PLAYER}`).first<{ n: number }>(),
+    db.prepare(`SELECT ${lagosDay("created_at")} AS d, COUNT(*) AS n FROM users WHERE ${PLAYER} AND ${lagosDay("created_at")} >= ? GROUP BY d`).bind(start14).all<{ d: string; n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS n FROM users WHERE ${PLAYER} AND ${lagosDay("created_at")} < ?`).bind(start14).first<{ n: number }>(),
+    activePlayers(db, t - 7 * DAY_MS, t, addDaysISO(today, -6), today),
+    activePlayers(db, t - 14 * DAY_MS, t - 7 * DAY_MS, addDaysISO(today, -13), addDaysISO(today, -7)),
+    db.prepare(`SELECT ${lagosDay("submitted_at")} AS d, type, COUNT(*) AS n FROM matches WHERE ${lagosDay("submitted_at")} >= ? GROUP BY d, type`).bind(start14).all<{ d: string; type: string; n: number }>(),
+    db.prepare(`SELECT COUNT(*) AS signedUp, SUM(email_verified) AS verified, SUM(status IN ('active','suspended')) AS onboarded,
+      SUM(status IN ('active','suspended') AND EXISTS (SELECT 1 FROM match_players mp JOIN matches m ON m.id = mp.match_id WHERE mp.user_id = users.id AND m.status = 'confirmed')) AS played
+      FROM users WHERE status != 'deleted'`).first<{ signedUp: number; verified: number; onboarded: number; played: number }>(),
+    db.prepare(`SELECT ct.id, ct.name, COUNT(*) AS n FROM matches m JOIN courts ct ON ct.id = m.court_id
+      WHERE m.status = 'confirmed' AND m.match_date >= ? GROUP BY ct.id ORDER BY n DESC, ct.name LIMIT 5`).bind(start30).all(),
+    db.prepare(`SELECT u.id, u.first_name AS first, u.last_name AS last, COUNT(*) AS n FROM match_players mp JOIN matches m ON m.id = mp.match_id JOIN users u ON u.id = mp.user_id
+      WHERE m.status = 'confirmed' AND m.match_date >= ? AND u.status != 'deleted' GROUP BY u.id ORDER BY n DESC, u.first_name LIMIT 5`).bind(start30).all(),
+    db.prepare(`SELECT id, name FROM courts WHERE status = 'pending' ORDER BY rowid LIMIT 5`).all(),
+    db.prepare(`SELECT id, submitted_at AS submittedAt, match_date AS date FROM matches WHERE status = 'pending' AND submitted_at <= ? ORDER BY submitted_at LIMIT 5`)
+      .bind(t - (PENDING_DAYS - 2) * DAY_MS).all<{ id: string; submittedAt: number; date: string }>(),
+  ]);
+  const courtQueueCount = await db.prepare("SELECT COUNT(*) AS n FROM courts WHERE status = 'pending'").first<{ n: number }>();
+
+  // fill every day in the 14-day window, even days with nothing
+  const days = Array.from({ length: 14 }, (_, i) => addDaysISO(start14, i));
+  let running = before?.n ?? 0;
+  const growth = days.map((d) => {
+    const n = newByDay.results.find((r) => r.d === d)?.n ?? 0;
+    running += n;
+    return { date: d, added: n, total: running };
+  });
+  const matchesDaily = days.map((d) => ({
+    date: d,
+    singles: matchesByDay.results.find((r) => r.d === d && r.type === "singles")?.n ?? 0,
+    doubles: matchesByDay.results.find((r) => r.d === d && r.type === "doubles")?.n ?? 0,
+  }));
+  const expiringMatches = expiring.results.length ? await loadMatches(c.env, `WHERE m.id IN (${expiring.results.map(() => "?").join(",")})`, expiring.results.map((r) => r.id), "ORDER BY m.submitted_at") : [];
+
+  return c.json({
+    today,
+    players: players?.n ?? 0,
+    activeCourts: courts?.n ?? 0,
+    gender: Object.fromEntries(gender.results.map((r) => [r.g, r.n])),
+    growth,
+    weeklyActive: { now: wap, before: wapPrev },
+    matchesDaily,
+    funnel: { signedUp: funnel?.signedUp ?? 0, verified: funnel?.verified ?? 0, onboarded: funnel?.onboarded ?? 0, played: funnel?.played ?? 0 },
+    topCourts: topCourts.results,
+    topPlayers: topPlayers.results,
+    attention: {
+      courts: courtQueue.results, courtsWaiting: courtQueueCount?.n ?? 0,
+      expiring: expiringMatches.map((m) => ({ ...m, expiresAt: m.submittedAt + PENDING_DAYS * DAY_MS })),
+    },
+  });
+});
+
+/** Players who logged a score (any outcome) or played a confirmed match in a window. */
+async function activePlayers(db: D1Database, fromMs: number, toMs: number, fromDate: string, toDate: string): Promise<number> {
+  const r = await db.prepare(`SELECT COUNT(DISTINCT mp.user_id) AS n FROM match_players mp JOIN matches m ON m.id = mp.match_id JOIN users u ON u.id = mp.user_id
+    WHERE u.status != 'deleted' AND ((m.submitted_at >= ? AND m.submitted_at < ?) OR (m.status = 'confirmed' AND m.match_date BETWEEN ? AND ?))`)
+    .bind(fromMs, toMs, fromDate, toDate).first<{ n: number }>();
+  return r?.n ?? 0;
+}

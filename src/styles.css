@@ -595,3 +595,55 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .am-lose{color:#8A8A8A}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;word-break:break-all}
 @media (min-width:760px){.am-filters{grid-template-columns:1fr 1fr 1.4fr 1fr}}
+/* admin › home dashboard */
+.admin-seg button svg{display:block;margin:0 auto}
+.dash{--viz-1:#eb6834;--viz-2:#2a78d6;--viz-none:#C9C9C9}
+.dash-card{background:#fff;border-radius:16px;padding:16px;min-width:0}
+.dash-card h3{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
+.dash-sub{font-size:12.5px;color:var(--mute);margin:2px 0 12px}
+.dash-kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.dash-kpi:last-child{grid-column:1/-1}
+@media (min-width:760px){.dash-kpis{grid-template-columns:repeat(3,1fr)}.dash-kpi:last-child{grid-column:auto}}
+.dash-kpi-label{font-size:12.5px;font-weight:600;color:var(--mute)}
+.dash-kpi-value{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.dash-kpi-sub{font-size:12.5px;color:var(--ink2)}
+.dash-delta{display:inline-flex;align-items:center;gap:3px}
+.dash-delta.up{color:var(--ok)}.dash-delta.down{color:var(--bad)}
+.dash-grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:860px){.dash-grid{grid-template-columns:1fr 1fr}}
+.dash-attn{margin-bottom:12px;border:1.5px solid var(--o-line)}
+.dash-attn h3 svg{color:var(--o-dark)}
+.dash-attn-row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 0;border-top:1px solid #F0F0F0;font-size:14px}
+.dash-attn h3+.dash-attn-row{border-top:0;margin-top:4px}
+.dash-attn-row .btn{flex:none;width:auto;text-decoration:none}
+.dash-empty{font-size:13.5px;color:var(--mute);padding:8px 0}
+.viz{position:relative}
+.viz svg{display:block;overflow:visible;touch-action:pan-y}
+.viz-tick{font-size:10.5px;fill:#8A8A8A;font-variant-numeric:tabular-nums}
+.viz-axis-title{font-size:11px;font-weight:600;fill:var(--ink2)}
+.viz-grid{stroke:#EFEFEF;stroke-width:1}
+.viz-base{stroke:#D9D9D9;stroke-width:1}
+.viz-cross{stroke:#BDBDBD;stroke-width:1;stroke-dasharray:3 3}
+.viz-tip{position:absolute;top:0;transform:translateX(-50%);background:#111;color:#fff;border-radius:8px;padding:6px 10px;font-size:12px;display:flex;flex-direction:column;gap:1px;pointer-events:none;white-space:nowrap;z-index:2}
+.viz-tip span{display:flex;align-items:center;gap:6px;color:#E6E6E6}
+.viz-key{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
+.viz-legend{display:flex;gap:16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.viz-legend span{display:inline-flex;align-items:center;gap:6px}
+.viz-legend b{color:var(--ink);font-variant-numeric:tabular-nums}
+.split-bar{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;background:#F2F2F2}
+.split-bar span{min-width:4px}
+.split-legend{display:grid;gap:8px;margin-top:14px;font-size:14px}
+.split-legend div{display:grid;grid-template-columns:auto 1fr auto 44px;align-items:center;gap:8px}
+.split-legend b,.funnel b,.ranked b{font-variant-numeric:tabular-nums;font-weight:700}
+.split-legend em,.funnel em{font-style:normal;color:var(--mute);text-align:right;font-variant-numeric:tabular-nums}
+.funnel{display:grid;gap:12px}
+.funnel-top{display:grid;grid-template-columns:1fr auto 44px;gap:8px;font-size:14px;margin-bottom:5px}
+.funnel-track{height:8px;background:#F2F2F2;border-radius:4px;overflow:hidden}
+.funnel-track span{display:block;height:100%;background:var(--viz-1);border-radius:0 4px 4px 0;min-width:2px}
+.ranked{list-style:none;display:grid;gap:12px;padding:0;margin:0}
+.ranked li{display:flex;gap:10px;align-items:flex-start}
+.ranked-i{width:20px;font-size:13px;font-weight:700;color:var(--mute);padding-top:1px;font-variant-numeric:tabular-nums}
+.ranked-main{flex:1;min-width:0}
+.ranked-top{display:flex;justify-content:space-between;gap:8px;font-size:14px;margin-bottom:5px}
+.ranked-top a,.ranked-top span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

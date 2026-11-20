@@ -2,18 +2,19 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
-import { Eye, EyeSlash } from "../icons";
+import { Eye, EyeSlash, House } from "../icons";
+import { AdminHome } from "./AdminHome";
 import { AdminMatches } from "./AdminMatches";
 import { Avatar, ErrorText, RecordBlock, useThemeColor, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
-type Tab = "courts" | "users" | "matches" | "photos";
-const TABS: Tab[] = ["courts", "users", "matches", "photos"];
+type Tab = "home" | "courts" | "users" | "matches" | "photos";
+const TABS: Tab[] = ["home", "courts", "users", "matches", "photos"];
 
 export function Admin() {
   const { me } = useSession(); const nav = useNavigate();
   useThemeColor("#111111");
   const [params, setParams] = useSearchParams();
-  const tab = ((TABS as string[]).includes(params.get("tab") ?? "") ? params.get("tab") : "courts") as Tab;
+  const tab = ((TABS as string[]).includes(params.get("tab") ?? "") ? params.get("tab") : "home") as Tab;
   const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
   if (!me) return <Loading />;
   if (!me.isAdmin) return <><TopBar title="Admin" back="/me" /><main><div className="empty">Admins only.</div></main></>;
@@ -22,8 +23,9 @@ export function Admin() {
       <TopBar title="Admin" dark right={<button className="btn sm" onClick={() => nav("/me")}>Exit</button>} />
       <main className="wide">
         <div className="seg admin-seg" role="tablist" aria-label="Admin sections">
-          {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
+          {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} aria-label={t === "home" ? "Home" : undefined} title={t === "home" ? "Home" : undefined} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t === "home" ? <House size={20} weight={tab === t ? "fill" : "bold"} /> : t[0].toUpperCase() + t.slice(1)}</button>)}
         </div>
+        {tab === "home" && <AdminHome onTab={setTab} />}
         {tab === "courts" && <Courts />}
         {tab === "users" && <Users />}
         {tab === "matches" && <MatchesTab />}
