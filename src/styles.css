@@ -343,3 +343,6 @@ html,body{background:#E4E4E4}
 .nav{border-top-color:#E6E6E6}
 .btn.ghost{background:#E1E1E1}
 .btn.ghost:hover{background:#D6D6D6}
+/* design 6: quieter text links */
+.link{text-decoration:none;font-weight:600;color:var(--o-dark)}
+.link:hover{text-decoration:underline;text-underline-offset:3px}
