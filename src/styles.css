@@ -497,3 +497,11 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .leave-wrap[data-leaving]{grid-template-rows:0fr;opacity:0}
 .leave-inner{min-height:0;overflow:hidden}
 @media (prefers-reduced-motion: reduce){.leave-wrap{transition:opacity 200ms ease}}
+/* motion 9: a wrong code shakes its head */
+.codeboxes[data-shake="a"]{animation:shake-a 320ms var(--ease-out)}
+.codeboxes[data-shake="b"]{animation:shake-b 320ms var(--ease-out)}
+@keyframes shake-a{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+@keyframes shake-b{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+.codeboxes.bad input{border-color:var(--bad)}
+.codeboxes input{transition:border-color 160ms ease}
+@media (prefers-reduced-motion: reduce){.codeboxes[data-shake]{animation:none}}
