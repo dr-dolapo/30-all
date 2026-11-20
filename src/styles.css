@@ -433,3 +433,12 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
   .mhead{padding-top:28px}
   .top{padding-top:16px}
 }
+/* motion 2: press feedback — the interface answers the moment a finger lands */
+.btn,.chip,.seg button,.mtoggle button,.fab,.star,.se-row,.xbtn,.eye,.calgrid button,.calhead button,.pbanner,.slot,.avgrid button,.choice button{
+  transition:transform 160ms var(--ease-out),background-color 160ms ease,color 160ms ease,border-color 160ms ease,box-shadow 160ms ease}
+.btn:active:not(:disabled),.chip:active,.seg button:active,.mtoggle button:active,.star:active,.xbtn:active,.eye:active,.calgrid button:active:not(:disabled),.calhead button:active,.slot:active,.avgrid button:active{transform:scale(0.97)}
+.fab:active{transform:scale(0.94)}
+.pbanner:active,.se-row:active:not(:disabled){transform:scale(0.985)}
+@media (prefers-reduced-motion: reduce){
+  .btn:active,.chip:active,.seg button:active,.mtoggle button:active,.fab:active,.star:active,.pbanner:active,.se-row:active,.slot:active,.avgrid button:active{transform:none}
+}
