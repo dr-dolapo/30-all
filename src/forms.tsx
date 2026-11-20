@@ -4,6 +4,7 @@ import { AVATAR_NAMES, avatarSVG } from "../shared/avatars";
 import { BACKHANDS, GENDERS, HANDS, NATIONALITIES, SHOTS, STATES, WHATSAPP_CODES } from "../shared/data";
 import { api, type CourtRef, type Me, type Racquet } from "./api";
 import { ErrorText, useUi } from "./ui";
+import { PhotoCropper } from "./crop";
 
 export interface Draft {
   first: string; last: string;
@@ -209,6 +210,7 @@ export function RacquetEditor({ d, set }: { d: Draft; set: Set }) {
 export function AvatarPicker({ d, set }: { d: Draft; set: Set }) {
   const { toast } = useUi();
   const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<File | null>(null); // photo waiting to be positioned
   const upload = async (f?: File) => {
     if (!f) return;
     setBusy(true);
@@ -230,9 +232,10 @@ export function AvatarPicker({ d, set }: { d: Draft; set: Set }) {
       </div>
       <label className="btn ghost" style={{ cursor: "pointer" }}>
         {busy ? "Uploading…" : d.photoUrl ? "Upload a different photo" : "Upload a photo"}
-        <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={(e) => upload(e.target.files?.[0])} />
+        <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setPicked(f); }} />
       </label>
       <div className="hint" style={{ textAlign: "center" }}>JPG, PNG or WebP, up to 5 MB.</div>
+      {picked && <PhotoCropper file={picked} onCancel={() => setPicked(null)} onCrop={(f) => { setPicked(null); upload(f); }} />}
       <div className="h2" style={{ marginTop: 18 }}>Or choose an avatar</div>
       <div className="avgrid">
         {AVATAR_NAMES.map((n, i) => (

@@ -552,3 +552,12 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .se-row.lost small{color:#CFCFCF}
 @media (prefers-reduced-motion: reduce){.se-win{animation-name:se-win-fade}@keyframes se-win-fade{from{opacity:0}}}
 .notif .t b{font-weight:700;color:var(--ink)}
+/* photo cropper: drag and zoom so the face sits inside the round avatar */
+.dialog.cropper{max-width:340px;text-align:center}
+.crop-area{position:relative;margin:0 auto;overflow:hidden;border-radius:14px;background:#111;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.crop-area:active{cursor:grabbing}
+.crop-area img{position:absolute;left:50%;top:50%;max-width:none;pointer-events:none}
+.crop-mask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);outline:2px solid rgba(255,255,255,.9);outline-offset:-2px;pointer-events:none}
+.crop-wait{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:14px}
+.crop-zoom{display:flex;align-items:center;gap:10px;margin:16px auto 0;max-width:260px;font-size:20px;font-weight:600;color:var(--mute)}
+.crop-zoom input{flex:1;accent-color:var(--o)}
