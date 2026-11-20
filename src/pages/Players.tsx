@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
 import { Avatar, BottomNav, ErrorText, fullName, Loading, RecordBlock, ScoreCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
-import { Star } from "../icons";
+import { Lock, Star } from "../icons";
 
 export function Players() {
   const { me, refresh } = useSession(); const pending = usePendingCount();
@@ -63,38 +63,34 @@ export function ProfileSections({ u, courts, racquets, record, private: priv }: 
         <Avatar u={u} size={96} />
         <div className="nm">{fullName(u)}</div>
         <div className="idtag">{u.pid}</div>
-        <div className="small" style={{ marginTop: 6 }}>{[u.nationality, u.hand && `${u.hand}-handed`, u.backhand && `${u.backhand} backhand`].filter(Boolean).join(" · ")}</div>
+        <div className="small" style={{ marginTop: 6 }}>{u.nationality}</div>
       </div>
       {record && (
         <>
           <RecordBlock record={record} />
         </>
       )}
-      <div className="profgrid">
-      <div>
-      <div className="h2">Courts</div>
-      <div className="card"><dl className="kv"><dt>Home court</dt><dd>{cLine(home)}</dd>{sec.map((c, i) => <Fragment key={c.id}><dt>Secondary {i + 1}</dt><dd>{cLine(c)}</dd></Fragment>)}</dl></div>
+      <div className="h2">Tennis</div>
+      <div className="card dlist">
+        <div className="drow"><span>Home court</span><b>{cLine(home)}</b></div>
+        {sec.map((c, i) => <div className="drow" key={c.id}><span>{i === 0 ? "Also plays at" : ""}</span><b>{cLine(c)}</b></div>)}
+        {racquets.map((r, i) => <div className="drow" key={"r" + i}><span>{r.primary ? "Racquet" : i === 1 || (i === 0 && !r.primary) ? "Other racquets" : ""}</span><b>{r.brand} {r.model}</b></div>)}
+        <div className="drow"><span>Plays</span><b>{u.hand ? `${u.hand}-handed` : "—"}{u.backhand ? `, ${u.backhand.toLowerCase()} backhand` : ""}</b></div>
+        <div className="drow"><span>Favourite shot</span><b>{u.shot ?? "—"}</b></div>
       </div>
-      <div>
-      <div className="h2">Racquets</div>
-      <div className="card"><dl className="kv">{racquets.length ? racquets.map((r, i) => <Fragment key={i}><dt>{r.primary ? "Primary" : "Secondary"}</dt><dd>{r.brand} {r.model}</dd></Fragment>) : <dd>—</dd>}</dl></div>
-      </div>
-      <div className="span-all">
-      <div className="h2">Game</div>
-      <div className="card"><dl className="kv">
-        <dt>Plays</dt><dd>{u.hand ? `${u.hand}-handed` : "—"}</dd>
-        <dt>Backhand</dt><dd>{u.backhand ?? "—"}</dd>
-        <dt>Favourite shot</dt><dd>{u.shot ?? "—"}</dd>
-        {priv && <>
-          <dt>Gender</dt><dd>{priv.gender}</dd>
-          <dt>Date of birth</dt><dd>{priv.dob ? new Date(priv.dob + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"} <span className="small">(you & admins)</span></dd>
-          <dt>Height</dt><dd>{priv.height} <span className="small">(only you)</span></dd>
-          <dt>WhatsApp</dt><dd>{priv.whatsapp || "—"} <span className="small">(admins only)</span></dd>
-          <dt>Email</dt><dd style={{ wordBreak: "break-all" }}>{priv.email}</dd>
-        </>}
-      </dl></div>
-      </div>
-      </div>
+      {priv && (
+        <>
+          <div className="h2 h2-icon"><Lock size={16} weight="fill" /> Only you can see this</div>
+          <div className="card dlist">
+            <div className="drow"><span>Gender</span><b>{priv.gender ?? "—"}</b></div>
+            <div className="drow"><span>Date of birth</span><b>{priv.dob ? new Date(priv.dob + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}</b></div>
+            <div className="drow"><span>Height</span><b>{priv.height}</b></div>
+            <div className="drow"><span>WhatsApp</span><b>{priv.whatsapp || "—"}</b></div>
+            <div className="drow"><span>Email</span><b style={{ wordBreak: "break-all" }}>{priv.email}</b></div>
+          </div>
+          <p className="small" style={{ margin: "8px 4px 0" }}>Admins can also see your date of birth and WhatsApp.</p>
+        </>
+      )}
     </>
   );
 }
