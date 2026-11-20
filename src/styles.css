@@ -330,3 +330,8 @@ a{color:inherit}
 .avgrid button.on{border-color:#0A0A0A}
 .calgrid button.sel{background:#0A0A0A;color:#fff}
 .calgrid button.sel .dot{background:#fff}
+/* design 4: secondary buttons are a quiet grey fill, so the primary action leads */
+.btn.ghost{background:#ECECEC;color:var(--ink);border:0}
+.btn.ghost:hover{background:#E2E2E2}
+.welcome .btn.ghost{background:#EE6A15;color:#111;border:0}
+.welcome .btn.ghost:hover{background:#E5620F}
