@@ -58,7 +58,9 @@ export function Login() {
     <>
       <TopBar title="Log in" back="/" />
       <main className="narrow">
-        <form className="card" onSubmit={submit}>
+        <form onSubmit={submit}>
+          <div className="stitle">Welcome back</div>
+          <p className="ssub">Log in to enter scores and see your record.</p>
           <label className="f">Email</label>
           <input className="inp" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <label className="f">Password</label>
@@ -67,7 +69,7 @@ export function Login() {
           <div style={{ marginTop: 16 }}><button className="btn" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button></div>
           <p style={{ textAlign: "center", marginTop: 14 }}><Link className="link" to="/forgot">Forgot password?</Link></p>
         </form>
-        <p className="small" style={{ textAlign: "center" }}>New here? <Link className="link" to="/signup">Create an account</Link></p>
+        <p className="small" style={{ textAlign: "center", marginTop: 18 }}>New here? <Link className="link" to="/signup">Create an account</Link></p>
       </main>
     </>
   );
@@ -92,7 +94,8 @@ export function Forgot() {
       <TopBar title="Reset password" back="/login" />
       <main className="narrow">
         {step === 1 ? (
-          <form className="card" onSubmit={send}>
+          <form onSubmit={send}>
+            <div className="stitle">Reset your password</div>
             <p className="ssub">Enter your email and we'll send you a 6-digit code.</p>
             <label className="f">Email</label>
             <input className="inp" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -100,7 +103,8 @@ export function Forgot() {
             <div style={{ marginTop: 14 }}><button className="btn">Send code</button></div>
           </form>
         ) : (
-          <form className="card" onSubmit={reset}>
+          <form onSubmit={reset}>
+            <div className="stitle">Check your email</div>
             <p className="ssub">If <b>{email}</b> has an account, we've sent it a code. It expires in 10 minutes.</p>
             <label className="f">Code</label>
             <input className="inp" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required />

@@ -358,3 +358,6 @@ html,body{background:#E4E4E4}
 @media (min-width:900px){.welcome img{width:120px;height:120px}}
 .wcard{padding-bottom:30px}
 .wsat{top:auto;bottom:-16px;right:18px}
+/* design 8: auth forms sit on the page like the sign-up steps */
+main.narrow > form{padding-top:6px}
+.stitle{font-size:24px;letter-spacing:-.01em}
