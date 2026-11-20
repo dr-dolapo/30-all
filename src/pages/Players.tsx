@@ -7,6 +7,7 @@ import { Lock, Star } from "../icons";
 
 export function Players() {
   const { me, refresh } = useSession(); const pending = usePendingCount();
+  const [popped, setPopped] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [all, setAll] = useState<PublicUser[] | null>(null);
   const [res, setRes] = useState<PublicUser[] | null>(null);
@@ -18,6 +19,7 @@ export function Players() {
   }, [q]);
   if (!me) return <Loading />;
   const toggle = async (id: string) => {
+    if (!me.favourites.includes(id)) setPopped(id);
     if (me.favourites.includes(id)) await api.del(`/favourites/${id}`); else await api.put(`/favourites/${id}`);
     refresh();
   };
@@ -25,7 +27,7 @@ export function Players() {
     <div className="pl" key={u.id}>
       <Avatar u={u} size={42} />
       <Link to={`/players/${u.id}`} className="grow" style={{ textDecoration: "none" }}><div className="nm">{fullName(u)}</div><div className="id">{u.pid}{u.homeCourt ? ` · ${u.homeCourt}` : ""}</div></Link>
-      <button className={"star" + (me.favourites.includes(u.id) ? " on" : "")} aria-label={me.favourites.includes(u.id) ? "Remove from favourites" : "Add to favourites"} onClick={() => toggle(u.id)}><Star size={22} weight={me.favourites.includes(u.id) ? "fill" : "regular"} /></button>
+      <button className={"star" + (me.favourites.includes(u.id) ? " on" : "")} data-pop={popped === u.id && me.favourites.includes(u.id) ? "" : undefined} aria-label={me.favourites.includes(u.id) ? "Remove from favourites" : "Add to favourites"} onClick={() => toggle(u.id)}><Star size={22} weight={me.favourites.includes(u.id) ? "fill" : "regular"} /></button>
     </div>
   );
   const favs = (all ?? []).filter((u) => me.favourites.includes(u.id));
@@ -98,19 +100,20 @@ export function ProfileSections({ u, courts, racquets, record, private: priv }: 
 
 export function Player() {
   const { id } = useParams(); const { me, refresh } = useSession(); const nav = useNavigate(); const pending = usePendingCount();
+  const [popped, setPopped] = useState(false);
   const [p, setP] = useState<PlayerProfile | null>(null); const [err, setErr] = useState("");
   const load = () => api.get<PlayerProfile>(`/players/${id}`).then(setP).catch((e) => setErr(e.message));
   useEffect(() => { if (id === me?.id) nav("/me", { replace: true }); else load(); }, [id]);
   if (err) return <><TopBar title="Player" back="/players" /><main><ErrorText msg={err} /></main></>;
   if (!p || !me) return <Loading />;
-  const toggle = async () => { if (p.isFavourite) await api.del(`/favourites/${p.id}`); else await api.put(`/favourites/${p.id}`); load(); refresh(); };
+  const toggle = async () => { setPopped(!p.isFavourite); if (p.isFavourite) await api.del(`/favourites/${p.id}`); else await api.put(`/favourites/${p.id}`); load(); refresh(); };
   return (
     <>
       <TopBar title={p.first} back={() => nav(-1)} />
       <main className="wide">
        <div className="cols">
        <section>
-        <div style={{ textAlign: "right" }}><button className={"btn sm" + (p.isFavourite ? "" : " ghost")} onClick={toggle}><Star size={16} weight={p.isFavourite ? "fill" : "regular"} /> {p.isFavourite ? "Favourite" : "Add to favourites"}</button></div>
+        <div style={{ textAlign: "right" }}><button className={"btn sm favbtn" + (p.isFavourite ? "" : " ghost")} data-pop={popped && p.isFavourite ? "" : undefined} onClick={toggle}><Star size={16} weight={p.isFavourite ? "fill" : "regular"} /> {p.isFavourite ? "Favourite" : "Add to favourites"}</button></div>
         <ProfileSections u={p} courts={p.courts} racquets={p.racquets} record={p.record} />
        </section>
        <section>

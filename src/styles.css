@@ -505,3 +505,7 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .codeboxes.bad input{border-color:var(--bad)}
 .codeboxes input{transition:border-color 160ms ease}
 @media (prefers-reduced-motion: reduce){.codeboxes[data-shake]{animation:none}}
+/* motion 10: the star pops when you favourite someone */
+.star[data-pop] svg,.favbtn[data-pop] svg{animation:starpop 260ms var(--ease-out)}
+@keyframes starpop{0%{transform:scale(.8)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){.star[data-pop] svg,.favbtn[data-pop] svg{animation:none}}
