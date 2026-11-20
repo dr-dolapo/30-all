@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { Avatar, ErrorText, StepBar, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, StepBar, TopBar, useSession, useThemeColor, useUi } from "../ui";
 import { CheckCircle } from "../icons";
 
 /** A still of the product on the welcome page: one confirmed score card and the confirmation that made it official. */
@@ -24,6 +24,7 @@ function WelcomeShowcase() {
 
 export function Welcome() {
   const nav = useNavigate();
+  useThemeColor("#FF751F");
   return (
     <div className="welcome">
       <div>

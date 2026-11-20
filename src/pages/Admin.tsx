@@ -3,12 +3,13 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
 import { Eye, EyeSlash } from "../icons";
-import { Avatar, ErrorText, RecordBlock, fullName, Loading, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, RecordBlock, useThemeColor, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
 type Tab = "courts" | "users" | "photos";
 
 export function Admin() {
   const { me } = useSession(); const nav = useNavigate();
+  useThemeColor("#111111");
   const [params, setParams] = useSearchParams();
   const tab = (["courts", "users", "photos"].includes(params.get("tab") ?? "") ? params.get("tab") : "courts") as Tab;
   const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });

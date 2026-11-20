@@ -226,3 +226,12 @@ export function RecordBlock({ record }: { record: { played: number; won: number;
     </div>
   );
 }
+
+/** Sets the phone's status-bar colour to match the top of the current screen, and restores white on leave. */
+export function useThemeColor(color: string) {
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute("content", color);
+    return () => meta?.setAttribute("content", "#FFFFFF");
+  }, [color]);
+}

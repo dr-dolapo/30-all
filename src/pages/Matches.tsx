@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, useSession, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, useSession, useThemeColor, useUi } from "../ui";
 import { CalendarDots, CaretRight, Plus, Trophy, X } from "../icons";
 
 /* ---------- helpers ---------- */
@@ -179,6 +179,7 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
 
 export function Matches() {
   const { me } = useSession();
+  useThemeColor("#D4D4D4");
   const today = lagosToday();
   const [scope, setScope] = useState<"me" | "all">("me");
   const [date, setDate] = useState(today);

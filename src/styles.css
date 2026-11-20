@@ -29,7 +29,7 @@ main{flex:1;padding:16px 16px 90px}
 .h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);margin:18px 2px 8px}
 .h2:first-child{margin-top:0}
 .btn{display:block;width:100%;background:var(--o);color:#fff;font-weight:700;padding:13px;border-radius:12px;text-align:center}
-.btn:hover{background:var(--o-dark)}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:var(--o-dark)}}
 .btn:disabled{background:#ccc;cursor:not-allowed}
 .btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--ink)}
 .btn.sm{display:inline-block;width:auto;padding:7px 12px;font-size:13px;border-radius:9px}
@@ -159,7 +159,7 @@ a{color:inherit}
 .nav a{padding:9px 0 11px;font-size:11px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;text-decoration:none}
 .nav a svg{width:22px;height:22px}
 .nav a.act{color:var(--o-dark);font-weight:600}
-.who a:hover{text-decoration:underline}
+@media (hover:hover) and (pointer:fine){.who a:hover{text-decoration:underline}}
 
 /* ---------- responsive layout ---------- */
 .navbrand,.hide-mobile{display:none}
@@ -214,7 +214,7 @@ a{color:inherit}
   .btn{cursor:pointer}
 }
 .eye{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--ink2)}
-.eye:hover{background:#EFEFEF}
+@media (hover:hover) and (pointer:fine){.eye:hover{background:#EFEFEF}}
 .eye[aria-pressed="true"]{color:var(--o-dark)}
 
 /* ---------- Matches screen (Figma, Nov 2026) ---------- */
@@ -274,13 +274,13 @@ a{color:inherit}
 @media (prefers-reduced-motion: reduce){.ll-blink,.ll-flick,.ll-flick2{animation:none !important}}
 
 .fab{position:fixed;right:18px;bottom:84px;width:66px;height:66px;border-radius:50%;background:#EF732A;display:grid;place-items:center;box-shadow:0 6px 16px rgba(239,115,42,.35);z-index:6}
-.fab:hover{background:var(--o-dark)}
+@media (hover:hover) and (pointer:fine){.fab:hover{background:var(--o-dark)}}
 .fab:focus-visible{outline:3px solid #0A0A0A;outline-offset:3px}
 
 .sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .sheet-head h3{margin:0;flex:1}
 .xbtn{font-size:26px;line-height:1;width:34px;height:34px;border-radius:50%;color:var(--ink2)}
-.xbtn:hover{background:#F0F0F0}
+@media (hover:hover) and (pointer:fine){.xbtn:hover{background:#F0F0F0}}
 .grabber{width:42px;height:5px;border-radius:3px;background:#D6D6D6;margin:-6px auto 12px}
 .addsheet{padding-bottom:28px}
 
@@ -288,7 +288,7 @@ a{color:inherit}
 .se-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;text-align:left;border-top:1px solid #E3E3E3}
 .se-row:first-child{border-top:0}
 .se-row:disabled{cursor:default;color:inherit}
-.se-row:not(:disabled):hover{background:#FAFAFA}
+@media (hover:hover) and (pointer:fine){.se-row:not(:disabled):hover{background:#FAFAFA}}
 .se-plus{width:40px;height:40px;border-radius:50%;border:2px solid #222;display:grid;place-items:center;font-size:24px;line-height:1;font-weight:400}
 .se-who{display:flex;flex-direction:column;flex:1;min-width:0}
 .se-who b{font-size:15px}
@@ -316,7 +316,7 @@ a{color:inherit}
 .tick{display:inline-grid;place-items:center}
 .top .back{display:grid;place-items:center;padding:4px 6px 4px 0}
 .calhead button{display:grid;place-items:center;width:34px;height:34px;border-radius:9px}
-.calhead button:hover{background:#F0F0F0}
+@media (hover:hover) and (pointer:fine){.calhead button:hover{background:#F0F0F0}}
 .star{display:grid;place-items:center}
 .btn.sm{display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .pbanner svg{flex:none}
@@ -332,9 +332,9 @@ a{color:inherit}
 .calgrid button.sel .dot{background:#fff}
 /* design 4: secondary buttons are a quiet grey fill, so the primary action leads */
 .btn.ghost{background:#ECECEC;color:var(--ink);border:0}
-.btn.ghost:hover{background:#E2E2E2}
+@media (hover:hover) and (pointer:fine){.btn.ghost:hover{background:#E2E2E2}}
 .welcome .btn.ghost{background:#EE6A15;color:#111;border:0}
-.welcome .btn.ghost:hover{background:#E5620F}
+@media (hover:hover) and (pointer:fine){.welcome .btn.ghost:hover{background:#E5620F}}
 /* design 5: cards separate by fill, not by an outline */
 :root{--bg:#EEEEEE}
 html,body{background:#E4E4E4}
@@ -342,10 +342,10 @@ html,body{background:#E4E4E4}
 .top{border-bottom-color:#E6E6E6}
 .nav{border-top-color:#E6E6E6}
 .btn.ghost{background:#E1E1E1}
-.btn.ghost:hover{background:#D6D6D6}
+@media (hover:hover) and (pointer:fine){.btn.ghost:hover{background:#D6D6D6}}
 /* design 6: quieter text links */
 .link{text-decoration:none;font-weight:600;color:var(--o-dark)}
-.link:hover{text-decoration:underline;text-underline-offset:3px}
+@media (hover:hover) and (pointer:fine){.link:hover{text-decoration:underline;text-underline-offset:3px}}
 /* design 7: the welcome page shows the product */
 .welcome img{width:96px;height:96px}
 .welcome h2{margin-top:22px}
@@ -370,7 +370,7 @@ main.narrow > form{padding-top:6px}
 .mtoggle button{color:#FFC4A0}
 .mtoggle button.on{background:#FFAE7A;color:#6E3210}
 .fab{background:#FF751F;box-shadow:0 6px 16px rgba(255,117,31,.35)}
-.fab:hover{background:var(--o-dark)}
+@media (hover:hover) and (pointer:fine){.fab:hover{background:var(--o-dark)}}
 .ddot{background:#FF751F}
 /* design 11: one score card everywhere */
 .sc-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);margin:-8px 4px 12px;min-height:20px}
@@ -408,3 +408,28 @@ main.narrow > form{padding-top:6px}
 .notif.unread .t{font-weight:500}
 /* design 16: admin sections as a segmented switch; Edit in each player's header */
 .admin-seg{margin-bottom:16px;max-width:420px}
+
+/* ===== Motion & feel (Emil Kowalski's design-engineering rules) ===== */
+:root{
+  --ease-out:cubic-bezier(0.23,1,0.32,1);      /* entering, responding */
+  --ease-in-out:cubic-bezier(0.77,0,0.175,1);  /* moving on screen */
+  --ease-drawer:cubic-bezier(0.32,0.72,0,1);   /* iOS-like sheets */
+}
+/* motion 1: feel like a phone app, not a website */
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+body{overscroll-behavior:none}
+.inp,input,select,textarea{font-size:16px}           /* under 16px, iOS zooms into the field */
+button,a,[role="button"],.chip,label.btn{touch-action:manipulation}
+button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.shell,.mscreen{min-height:100dvh}
+.top{padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.mhead{padding-top:calc(22px + env(safe-area-inset-top,0px))}
+.welcome{padding-top:calc(40px + env(safe-area-inset-top,0px));padding-bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+.nav{padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+.fab{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+@media (min-width:900px){
+  .fab{bottom:calc(36px + env(safe-area-inset-bottom,0px))}
+  .mhead{padding-top:28px}
+  .top{padding-top:16px}
+}

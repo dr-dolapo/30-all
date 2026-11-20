@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ageOn } from "../../shared/rules";
 import { api } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, heightCm, profileBody, RacquetEditor, StyleFields, type Draft } from "../forms";
-import { Avatar, ErrorText, Loading, StepBar, TopBar, useSession } from "../ui";
+import { Avatar, ErrorText, Loading, StepBar, TopBar, useSession, useThemeColor } from "../ui";
 
 const STEPS = ["about", "style", "courts", "racquets", "photo"] as const;
 const TITLES = {
@@ -73,6 +73,7 @@ export function Onboarding() {
 
 export function Done() {
   const nav = useNavigate(); const { me } = useSession();
+  useThemeColor("#FF751F");
   if (!me) return <Loading />;
   return (
     <div className="welcome" style={{ textAlign: "center", alignItems: "center" }}>
