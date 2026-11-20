@@ -30,13 +30,13 @@ const UiCtx = createContext<{ toast: (msg: ReactNode) => void; confirm: (o: Dial
 export const useUi = () => useContext(UiCtx);
 
 export function UiProvider({ children }: { children: ReactNode }) {
-  const [msg, setMsg] = useState<ReactNode>(null);
+  const [msg, setMsg] = useState<{ id: number; node: ReactNode } | null>(null);
   const [dlg, setDlg] = useState<DialogOpts | null>(null);
-  useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 3500); return () => clearTimeout(t); }, [msg]);
+  const toast = useCallback((node: ReactNode) => setMsg({ id: Date.now(), node }), []);
   return (
-    <UiCtx.Provider value={{ toast: setMsg, confirm: setDlg }}>
+    <UiCtx.Provider value={{ toast, confirm: setDlg }}>
       {children}
-      {msg && <div className="toast" role="status">{msg}</div>}
+      {msg && <Toast key={msg.id} onDone={() => setMsg(null)}>{msg.node}</Toast>}
       {dlg && <ConfirmDialog key={dlg.title} opts={dlg} onDone={() => setDlg(null)} />}
     </UiCtx.Provider>
   );
@@ -264,4 +264,11 @@ function ConfirmDialog({ opts, onDone }: { opts: DialogOpts; onDone: () => void 
       </div>
     </div>
   );
+}
+
+/** A toast enters from the top edge and leaves by the same edge (Sonner's 400ms ease). */
+function Toast({ children, onDone }: { children: ReactNode; onDone: () => void }) {
+  const { state, close } = usePresence(onDone, 300);
+  useEffect(() => { const t = setTimeout(() => close(), 3500); return () => clearTimeout(t); }, [close]);
+  return <div className="toast" role="status" data-state={state} onClick={() => close()}>{children}</div>;
 }

@@ -465,3 +465,8 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
   .sheet,.dialog{transition:opacity 200ms ease}
   .sheet[data-state="enter"],.sheet[data-state="exit"],.dialog[data-state="enter"],.dialog[data-state="exit"]{transform:none;opacity:0}
 }
+/* motion 5: toasts come in from the top edge and leave by it */
+.toast{transition:transform 400ms ease,opacity 400ms ease}
+.toast[data-state="enter"],.toast[data-state="exit"]{transform:translate(-50%,calc(-100% - 20px));opacity:0}
+.toast[data-state="exit"]{transition-duration:300ms}
+@media (prefers-reduced-motion: reduce){.toast[data-state="enter"],.toast[data-state="exit"]{transform:translateX(-50%)}}
