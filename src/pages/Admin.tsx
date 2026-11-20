@@ -162,9 +162,9 @@ function Users() {
       <div className="cardgrid">
       {shown.map((u) => (
         <div className="card" key={u.id}>
-          <div className="pl" style={{ paddingTop: 0 }}>
+          <div className="pl top-align" style={{ paddingTop: 0 }}>
             <Avatar u={u} size={40} />
-            <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid} · {u.email}</div></div>
+            <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid}</div><div className="id one-line" title={u.email}>{u.email}</div></div>
             <button className="btn sm ghost" style={{ flex: "none" }} onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button>
           </div>
           <dl className="kv" style={{ fontSize: 13 }}>

@@ -67,7 +67,7 @@ export function BottomNav({ pending = 0 }: { pending?: number }) {
   const { me } = useSession();
   const item = (to: string, icon: (on: boolean) => ReactNode, label: string, badge?: number) => (
     <NavLink to={to} className={({ isActive }) => (isActive ? "act" : "")}>
-      {({ isActive }) => <>{icon(isActive)}{badge ? <span className="badge">{badge}</span> : null}{label}</>}
+      {({ isActive }) => <>{icon(isActive)}{badge ? <span className="badge">{badge > 99 ? "99+" : badge}</span> : null}{label}</>}
     </NavLink>
   );
   return (
@@ -108,7 +108,7 @@ function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
       <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
         {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
       </div>
-      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
+      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} title={fullName(p)}>{shortName(p)}</Link>)}</div>
     </div>
   );
 }
