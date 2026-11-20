@@ -697,3 +697,11 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .ac-grid.big .ac-c[data-today]{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ink)}
 .ac-pick{position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom,0px));background:#fff;margin:6px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid #F0F0F0;font-size:13.5px;color:var(--ink2);text-align:center}
 .ac-pick b{color:var(--ink)}
+/* activity card: half-size squares, up to 6 weeks */
+.ac-grid.small{max-width:170px;gap:4px}
+.ac-grid.small .ac-wd{font-size:9.5px;padding-bottom:1px}
+.ac-grid.small .ac-c{border-radius:4.5px}
+.ac-card .ac-streak{margin-top:12px}
+.ac-card .ac-streak b{font-size:34px}
+.ac-card .ac-streak span{font-size:13px}
+.ac-card{padding:16px 18px 14px}

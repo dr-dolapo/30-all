@@ -34,25 +34,31 @@ function Cell({ iso, n, today, num }: { iso: string; n: number; today: string; n
     title={`${nice(iso)}: ${n ? `${n} match${n > 1 ? "es" : ""}` : "no matches"}`}>{num}</i>;
 }
 
-/** The last 4 weeks on the profile. Tapping it opens the full history. */
+const MAX_WEEKS = 6;
+
+/** Up to the last 6 weeks on the profile: one row per week the player has been on 30-All. Tapping it opens the full history. */
 export function ActivityCard({ a, mine }: { a: Activity; mine: boolean }) {
   const [open, setOpen] = useState(false);
   const today = lagosToday();
-  const first = addDaysISO(mondayOf(today), -21); // 4 week rows, ending with this week
+  // a new player sees one row in their first week, two in their second, and so on up to six
+  const thisMon = mondayOf(today);
+  const sinceMon = mondayOf(a.since < today ? a.since : today);
+  const weeks = Math.min(MAX_WEEKS, Math.round((Date.parse(thisMon) - Date.parse(sinceMon)) / (7 * 864e5)) + 1);
+  const first = addDaysISO(thisMon, -7 * (weeks - 1));
   const s = useMemo(() => streaks(a, today), [a, today]);
-  let recent = 0; for (let i = 0; i < 28; i++) recent += a.days[addDaysISO(first, i)] ?? 0;
-  const rows = [0, 1, 2, 3].map((w) => Array.from({ length: 7 }, (_, k) => addDaysISO(first, w * 7 + k)));
+  let recent = 0; for (let i = 0; i < weeks * 7; i++) recent += a.days[addDaysISO(first, i)] ?? 0;
+  const rows = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, k) => addDaysISO(first, w * 7 + k)));
   return (
     <>
       <div className="h2 ac-title">Activity</div>
       <button type="button" className="card ac-card" onClick={() => setOpen(true)}
-        aria-label={`Activity: ${recent} matches in the last 4 weeks, ${s.current} week streak. Open full history`}>
-        <div className="ac-grid" aria-hidden="true">
+        aria-label={`Activity: ${recent} matches in the last ${weeks === 1 ? "week" : `${weeks} weeks`}, ${s.current} week streak. Open full history`}>
+        <div className="ac-grid small" aria-hidden="true">
           {WD.map((d, i) => <span key={i} className="ac-wd">{d}</span>)}
           {rows.flat().map((iso) => <Cell key={iso} iso={iso} n={a.days[iso] ?? 0} today={today} />)}
         </div>
         {recent === 0 ? (
-          <div className="ac-nudge">{mine ? "No matches in the last 4 weeks. Log a score to start a streak." : "No matches in the last 4 weeks."}</div>
+          <div className="ac-nudge">{(weeks === 1 ? "No matches this week." : `No matches in the last ${weeks} weeks.`) + (mine ? " Log a score to start a streak." : "")}</div>
         ) : (
           <div className="ac-streak"><b>{s.current}</b><span>week streak</span></div>
         )}
