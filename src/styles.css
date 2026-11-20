@@ -257,8 +257,12 @@ a{color:inherit}
 .sc-names a{text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-team.won .sc-names a{color:#0A0A0A;font-weight:700}
 .sc-team.lost .sc-names a{color:#B9B9B9;font-weight:400}
-.sc-score{display:flex;flex-direction:column;align-items:center;padding:0 6px}
-.sc-set{display:grid;grid-template-columns:22px 18px 22px;text-align:center;font-size:23px;line-height:1.1;color:#0A0A0A;font-variant-numeric:tabular-nums;font-weight:400}
+/* one grid for all sets so the dashes line up and the gap around them never changes, even for 10-7 */
+.sc-score{display:grid;grid-template-columns:max-content 26px max-content;align-self:center;padding:0 6px;font-size:23px;line-height:1.1;color:#0A0A0A;font-variant-numeric:tabular-nums;font-weight:400}
+.sc-set{display:contents}
+.sc-set>span:first-child{text-align:right}
+.sc-set>span:last-child{text-align:left}
+.sc-set .dash{text-align:center}
 .sc-set .b{font-weight:800}
 .sc-set .dash{font-weight:400}
 .sc-court{text-align:center;font-size:10.5px;color:#444;margin-top:12px}
