@@ -487,3 +487,8 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .mtoggle button{position:relative;z-index:1}
 .mtoggle button.on{background:transparent}
 @media (prefers-reduced-motion: reduce){.seg::before,.mtoggle::before{transition:none}}
+/* motion 7: switching days never flashes "Loading…"; the old day dims, the new one fades in */
+.dayview{animation:dayin 160ms ease-out}
+.dayview[data-loading]{opacity:.55;transition:opacity 120ms ease 80ms}
+@keyframes dayin{from{opacity:0}}
+@media (prefers-reduced-motion: reduce){.dayview{animation:none}}

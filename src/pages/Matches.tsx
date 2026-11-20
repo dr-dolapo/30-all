@@ -192,9 +192,16 @@ export function Matches() {
   const [pendOpen, setPendOpen] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const [loadingDay, setLoadingDay] = useState(false);
+  const [shownKey, setShownKey] = useState("");
   const loadDay = useCallback(() => {
-    setList(null);
-    api.get<Match[]>(`/matches/day?date=${date}&scope=${scope}`).then(setList).catch(() => setList([]));
+    // Keep the current cards on screen (dimmed) while the next day loads, so nothing flashes.
+    setLoadingDay(true);
+    const key = `${date}|${scope}`;
+    api.get<Match[]>(`/matches/day?date=${date}&scope=${scope}`)
+      .then((l) => { setList(l); setShownKey(key); })
+      .catch(() => { setList([]); setShownKey(key); })
+      .finally(() => setLoadingDay(false));
   }, [date, scope]);
   const loadPending = useCallback(() => api.get<Match[]>("/matches/pending").then(setPending).catch(() => {}), []);
   const loadDays = useCallback(() => api.get<{ first: string | null; days: string[] }>(`/matches/days?scope=${scope}`).then(setDays).catch(() => {}), [scope]);
@@ -230,11 +237,15 @@ export function Matches() {
               <CaretRight size={18} weight="bold" aria-hidden="true" />
             </button>
           )}
-          {list === null ? <Loading /> : list.length === 0 ? <LoveLove /> : (
-            <>
-              {list.map((m) => <ScoreCard key={m.id} m={m} />)}
-              <button className="pnote" onClick={() => setPendOpen(true)}>Can't find a match? It might still be pending</button>
-            </>
+          {list === null ? <Loading /> : (
+            <div key={shownKey} className="dayview" data-loading={loadingDay || undefined} aria-busy={loadingDay}>
+              {list.length === 0 ? <LoveLove /> : (
+                <>
+                  {list.map((m) => <ScoreCard key={m.id} m={m} />)}
+                  <button className="pnote" onClick={() => setPendOpen(true)}>Can't find a match? It might still be pending</button>
+                </>
+              )}
+            </div>
           )}
         </main>
         <button className="fab" aria-label="Add a score" onClick={() => setAdding(true)}>
