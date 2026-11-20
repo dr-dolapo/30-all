@@ -400,7 +400,7 @@ main.narrow > form{padding-top:6px}
 /* design 15: inbox icons, day groups, calmer text */
 .notif{align-items:flex-start;gap:12px}
 .notif .t{font-weight:400;font-size:14px;line-height:1.4;color:var(--ink2)}
-.notif.unread .t{font-weight:600;color:var(--ink)}
+/* unread is shown by the orange dot alone, so bold stays for key details */
 .nbody{flex:1;min-width:0}
 .nicon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .nicon.ok{background:var(--ok-soft);color:var(--ok)}
@@ -552,3 +552,4 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .se-row.lost b{color:#B9B9B9}
 .se-row.lost small{color:#CFCFCF}
 @media (prefers-reduced-motion: reduce){.se-win{animation-name:se-win-fade}@keyframes se-win-fade{from{opacity:0}}}
+.notif .t b{font-weight:700;color:var(--ink)}
