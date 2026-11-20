@@ -114,7 +114,7 @@ function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
 }
 
 /** Winner on the left (bold), loser on the right (grey), each set's winning score bold, court at the bottom. */
-export function ScoreCard({ m, showDate, actions }: { m: Match; showDate?: boolean; actions?: ReactNode }) {
+export function ScoreCard({ m, showDate, actions, showConfirmed }: { m: Match; showDate?: boolean; actions?: ReactNode; showConfirmed?: boolean }) {
   const W = m.winner === "A" ? m.teamA : m.teamB, L = m.winner === "A" ? m.teamB : m.teamA;
   const sets = m.sets.map(([a, b]) => (m.winner === "A" ? [a, b] : [b, a]));
   let status: ReactNode = null;
@@ -124,6 +124,7 @@ export function ScoreCard({ m, showDate, actions }: { m: Match; showDate?: boole
   }
   if (m.status === "rejected") status = <span className="pill bad">Rejected</span>;
   if (m.status === "expired") status = <span className="pill bad">Expired</span>;
+  if (m.status === "confirmed" && showConfirmed) status = <span className="pill ok">Confirmed</span>;
   return (
     <article className="scard" aria-label={`${W.map(shortName).join(" & ")} beat ${L.map(shortName).join(" & ")}`}>
       {(showDate || status) && (
