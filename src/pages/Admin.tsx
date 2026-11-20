@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
+import { Eye, EyeSlash } from "../icons";
 import { Avatar, ErrorText, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
 type Tab = "courts" | "users" | "photos";
@@ -186,12 +187,7 @@ interface AdminUserDetail {
   courts: CourtRef[]; racquets: Racquet[]; record: { played: number; won: number; lost: number; form: string[] };
 }
 
-const EyeIcon = ({ open }: { open: boolean }) => (
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
-    {!open && <path d="M3 3l18 18" />}
-  </svg>
-);
+const EyeIcon = ({ open }: { open: boolean }) => (open ? <EyeSlash size={18} weight="bold" aria-hidden="true" /> : <Eye size={18} weight="bold" aria-hidden="true" />);
 
 /** Shows **** until the admin clicks the eye. */
 function Masked({ value, shown, onToggle, label }: { value: React.ReactNode; shown: boolean; onToggle: () => void; label: string }) {

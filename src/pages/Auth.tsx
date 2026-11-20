@@ -151,7 +151,7 @@ export function Verify() {
     e.preventDefault(); setErr("");
     const code = digits.join("");
     if (code.length < 6) return setErr("Enter all 6 digits");
-    try { await api.post("/auth/verify", { email, code }); toast("✅ Email verified"); await refresh(); nav("/onboarding"); }
+    try { await api.post("/auth/verify", { email, code }); toast("Email verified"); await refresh(); nav("/onboarding"); }
     catch (e: any) { setErr(e.message); }
   };
   const resend = async () => {

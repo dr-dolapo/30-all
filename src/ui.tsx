@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { avatarSVG } from "../shared/avatars";
 import { FORMATS } from "../shared/rules";
 import { api, type Match, type Me, type PublicUser } from "./api";
+import { Bell, CaretLeft, CaretRight, Check, MapPin, TennisBall, User, UsersThree } from "./icons";
 
 /* ---------- session context ---------- */
 
@@ -58,7 +59,7 @@ export function TopBar({ title, back, right, dark }: { title: ReactNode; back?: 
   const nav = useNavigate();
   return (
     <div className={"top" + (dark ? " admintop" : "")}>
-      {back ? <button className="back" aria-label="Back" onClick={() => (typeof back === "string" ? nav(back) : back())}>‹</button>
+      {back ? <button className="back" aria-label="Back" onClick={() => (typeof back === "string" ? nav(back) : back())}><CaretLeft size={22} weight="bold" /></button>
         : <img src={dark ? "/logo-white.png" : "/logo-black.png"} alt="30-All" />}
       <h1>{title}</h1>
       {right}
@@ -67,17 +68,17 @@ export function TopBar({ title, back, right, dark }: { title: ReactNode; back?: 
 }
 
 const ICON = {
-  matches: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M4.5 8c3 1.5 3 6.5 0 8M19.5 8c-3 1.5-3 6.5 0 8" /></svg>,
-  players: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.5-4 3-6 6.5-6s6 2 6.5 6" /><circle cx="17" cy="9" r="2.5" /><path d="M16 14c3 0 5 1.8 5.5 5" /></svg>,
-  inbox: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9Z" /><path d="M10 19a2 2 0 0 0 4 0" /></svg>,
-  me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c.8-4.5 4-7 8-7s7.2 2.5 8 7" /></svg>,
+  matches: (on: boolean) => <TennisBall size={22} weight={on ? "fill" : "regular"} />,
+  players: (on: boolean) => <UsersThree size={22} weight={on ? "fill" : "regular"} />,
+  inbox: (on: boolean) => <Bell size={22} weight={on ? "fill" : "regular"} />,
+  me: (on: boolean) => <User size={22} weight={on ? "fill" : "regular"} />,
 };
 
 export function BottomNav({ pending = 0 }: { pending?: number }) {
   const { me } = useSession();
-  const item = (to: string, icon: ReactNode, label: string, badge?: number) => (
+  const item = (to: string, icon: (on: boolean) => ReactNode, label: string, badge?: number) => (
     <NavLink to={to} className={({ isActive }) => (isActive ? "act" : "")}>
-      {icon}{badge ? <span className="badge">{badge}</span> : null}{label}
+      {({ isActive }) => <>{icon(isActive)}{badge ? <span className="badge">{badge}</span> : null}{label}</>}
     </NavLink>
   );
   return (
@@ -114,7 +115,7 @@ export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
     const team = side === "A" ? m.teamA : m.teamB, win = m.winner === side && m.status === "confirmed";
     return (
       <div className={"mline" + (m.winner === side ? " win" : "")}>
-        <span className="tick">{win ? "✓" : ""}</span>
+        <span className="tick">{win ? <Check size={14} weight="bold" /> : null}</span>
         <span style={{ display: "flex" }}>{team.map((p) => <Avatar key={p.id} u={p} size={26} />)}</span>
         <span className="who">{team.map((p, i) => <span key={p.id}>{i > 0 && " & "}<Link to={`/players/${p.id}`} style={{ textDecoration: "none" }}>{fullName(p)}</Link></span>)}</span>
         <span className="sc">{m.sets.map((s, i) => <span key={i}>{side === "A" ? s[0] : s[1]}</span>)}</span>
@@ -133,7 +134,7 @@ export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
     <div className="match">
       <div className="meta"><span>{fmtDate(m.date)} · {m.type === "doubles" ? "Doubles" : "Singles"} · {F.label}</span>{status}</div>
       {line("A")}{line("B")}
-      <div className="small" style={{ marginTop: 6 }}>📍 {m.court?.name ?? "—"} · entered by {submitter?.first}</div>
+      <div className="small meta-line" style={{ marginTop: 6 }}><MapPin size={14} weight="fill" /> {m.court?.name ?? "—"} · entered by {submitter?.first}</div>
       {actions}
     </div>
   );
@@ -155,9 +156,9 @@ export function Calendar({ month, onMonth, days, selected, onSelect, min, max }:
   return (
     <div className="cal">
       <div className="calhead">
-        <button onClick={() => move(-1)} aria-label="Previous month">‹</button>
+        <button onClick={() => move(-1)} aria-label="Previous month"><CaretLeft size={18} weight="bold" /></button>
         <b>{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</b>
-        <button onClick={() => move(1)} aria-label="Next month">›</button>
+        <button onClick={() => move(1)} aria-label="Next month"><CaretRight size={18} weight="bold" /></button>
       </div>
       <div className="calgrid">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="dow">{d}</div>)}

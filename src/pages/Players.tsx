@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
 import { Avatar, BottomNav, ErrorText, fullName, Loading, MatchCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
+import { Star } from "../icons";
 
 export function Players() {
   const { me, refresh } = useSession(); const pending = usePendingCount();
@@ -24,7 +25,7 @@ export function Players() {
     <div className="pl" key={u.id}>
       <Avatar u={u} size={42} />
       <Link to={`/players/${u.id}`} className="grow" style={{ textDecoration: "none" }}><div className="nm">{fullName(u)}</div><div className="id">{u.pid}{u.homeCourt ? ` · ${u.homeCourt}` : ""}</div></Link>
-      <button className={"star" + (me.favourites.includes(u.id) ? " on" : "")} aria-label={me.favourites.includes(u.id) ? "Remove from favourites" : "Add to favourites"} onClick={() => toggle(u.id)}>★</button>
+      <button className={"star" + (me.favourites.includes(u.id) ? " on" : "")} aria-label={me.favourites.includes(u.id) ? "Remove from favourites" : "Add to favourites"} onClick={() => toggle(u.id)}><Star size={22} weight={me.favourites.includes(u.id) ? "fill" : "regular"} /></button>
     </div>
   );
   const favs = (all ?? []).filter((u) => me.favourites.includes(u.id));
@@ -38,7 +39,7 @@ export function Players() {
         ) : all === null ? <Loading /> : (
           <>
             <div className="h2" style={{ marginTop: 16 }}>Favourites</div>
-            <div className="card" style={{ padding: "4px 14px" }}>{favs.length ? favs.map(row) : <div className="empty">Tap ★ to add players you play often.</div>}</div>
+            <div className="card" style={{ padding: "4px 14px" }}>{favs.length ? favs.map(row) : <div className="empty">Tap the star next to a player you play often.</div>}</div>
             <div className="h2">Everyone</div>
             <div className="card" style={{ padding: "4px 14px" }}>{all.length ? all.map(row) : <div className="empty">No other players yet. Invite your friends!</div>}</div>
           </>
@@ -113,7 +114,7 @@ export function Player() {
       <main className="wide">
        <div className="cols">
        <section>
-        <div style={{ textAlign: "right" }}><button className={"btn sm" + (p.isFavourite ? "" : " ghost")} onClick={toggle}>{p.isFavourite ? "★ Favourite" : "☆ Add to favourites"}</button></div>
+        <div style={{ textAlign: "right" }}><button className={"btn sm" + (p.isFavourite ? "" : " ghost")} onClick={toggle}><Star size={16} weight={p.isFavourite ? "fill" : "regular"} /> {p.isFavourite ? "Favourite" : "Add to favourites"}</button></div>
         <ProfileSections u={p} courts={p.courts} racquets={p.racquets} record={p.record} />
        </section>
        <section>
