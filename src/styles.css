@@ -539,3 +539,4 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .pl.top-align{align-items:flex-start}
 .pl .av,.pl .btn,.pl .star{flex-shrink:0}
 .badge{white-space:nowrap}
+.sc-names .ln{flex:none;margin-left:.28em}
