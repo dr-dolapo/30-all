@@ -406,3 +406,5 @@ main.narrow > form{padding-top:6px}
 .nicon.info{background:#EEF1F4;color:#4A5563}
 .notif .dotu{margin-top:13px}
 .notif.unread .t{font-weight:500}
+/* design 16: admin sections as a segmented switch; Edit in each player's header */
+.admin-seg{margin-bottom:16px;max-width:420px}

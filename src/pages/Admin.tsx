@@ -18,8 +18,8 @@ export function Admin() {
     <>
       <TopBar title="Admin" dark right={<button className="btn sm" onClick={() => nav("/me")}>Exit</button>} />
       <main className="wide">
-        <div className="tabs">
-          {(["courts", "users", "photos"] as Tab[]).map((t) => <button key={t} className={"chip" + (tab === t ? " on" : "")} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
+        <div className="seg admin-seg" role="tablist" aria-label="Admin sections">
+          {(["courts", "users", "photos"] as Tab[]).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
         </div>
         {tab === "courts" && <Courts />}
         {tab === "users" && <Users />}
@@ -164,13 +164,13 @@ function Users() {
           <div className="pl" style={{ paddingTop: 0 }}>
             <Avatar u={u} size={40} />
             <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid} · {u.email}</div></div>
+            <button className="btn sm ghost" style={{ flex: "none" }} onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button>
           </div>
           <dl className="kv" style={{ fontSize: 13 }}>
             <dt>WhatsApp</dt><dd>{u.whatsapp || "—"}</dd>
             <dt>Gender</dt><dd>{u.gender || "—"}</dd>
             <dt>Home court</dt><dd><HomeCourtSelect user={u} courts={courts} onChanged={load} /></dd>
           </dl>
-          <div className="acts"><button className="btn sm ghost" onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button></div>
         </div>
       ))}
       </div>
