@@ -470,3 +470,20 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .toast[data-state="enter"],.toast[data-state="exit"]{transform:translate(-50%,calc(-100% - 20px));opacity:0}
 .toast[data-state="exit"]{transition-duration:300ms}
 @media (prefers-reduced-motion: reduce){.toast[data-state="enter"],.toast[data-state="exit"]{transform:translateX(-50%)}}
+/* motion 6: the selection slides to the tapped option instead of jumping */
+.seg{position:relative;--n:2;--i:0}
+.seg:has(> button:nth-child(3):last-child){--n:3}
+.seg:has(> button.on:nth-child(2)){--i:1}
+.seg:has(> button.on:nth-child(3)){--i:2}
+.seg::before{content:"";position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px - (var(--n) - 1) * 3px) / var(--n));
+  background:#0A0A0A;border-radius:8px;transform:translateX(calc(var(--i) * (100% + 3px)));transition:transform 220ms var(--ease-in-out),opacity 150ms ease}
+.seg:not(:has(> button.on))::before{opacity:0}
+.seg button{position:relative;z-index:1}
+.seg button.on{background:transparent}
+.mtoggle{position:relative;--i:0}
+.mtoggle:has(> button.on:nth-child(2)){--i:1}
+.mtoggle::before{content:"";position:absolute;top:5px;bottom:5px;left:5px;width:calc((100% - 10px) / 2);background:#FFAE7A;border-radius:999px;
+  transform:translateX(calc(var(--i) * 100%));transition:transform 220ms var(--ease-in-out)}
+.mtoggle button{position:relative;z-index:1}
+.mtoggle button.on{background:transparent}
+@media (prefers-reduced-motion: reduce){.seg::before,.mtoggle::before{transition:none}}
