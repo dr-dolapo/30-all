@@ -1,7 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { ErrorText, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, TopBar, useSession, useUi } from "../ui";
+import { CheckCircle } from "../icons";
+
+/** A still of the product on the welcome page: one confirmed score card and the confirmation that made it official. */
+function WelcomeShowcase() {
+  const sets: Array<[number, number]> = [[6, 4], [3, 6], [7, 5]];
+  return (
+    <div className="wshow" aria-hidden="true">
+      <div className="scard wcard">
+        <div className="scard-row">
+          <div className="sc-team won"><div className="sc-avs"><Avatar u={{ avatar: 2, photoUrl: null }} size={60} /></div><div className="sc-names"><span>Tolu B.</span></div></div>
+          <div className="sc-score">{sets.map(([w, l], i) => <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>)}</div>
+          <div className="sc-team lost"><div className="sc-avs"><Avatar u={{ avatar: 10, photoUrl: null }} size={60} /></div><div className="sc-names"><span>Chidi O.</span></div></div>
+        </div>
+        <div className="sc-court">Ikoyi Club 1938</div>
+      </div>
+      <div className="wsat"><CheckCircle size={18} weight="fill" /> Accepted by Chidi</div>
+    </div>
+  );
+}
 
 export function Welcome() {
   const nav = useNavigate();
@@ -12,6 +31,7 @@ export function Welcome() {
         <h2>Your tennis.<br />Your scores.<br />Your crew.</h2>
         <p>Log your matches, settle the scoreline and see who's really on top.</p>
       </div>
+      <WelcomeShowcase />
       <div>
         <button className="btn" onClick={() => nav("/signup")}>Create account</button>
         <button className="btn ghost" onClick={() => nav("/login")}>Log in</button>
