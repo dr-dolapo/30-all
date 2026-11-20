@@ -178,3 +178,15 @@ export function Calendar({ month, onMonth, days, selected, onSelect, min, max }:
 
 export function Loading() { return <div className="loading">Loading…</div>; }
 export function ErrorText({ msg }: { msg?: string | null }) { return msg ? <div className="err" role="alert">{msg}</div> : null; }
+
+/** Sign-up progress: "Step 3 of 7" over a segmented bar. */
+export function StepBar({ step, total = 7 }: { step: number; total?: number }) {
+  return (
+    <div className="stepbar">
+      <div className="steplabel">Step {step} of {total}</div>
+      <div className="steps" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={step} aria-label={`Step ${step} of ${total}`}>
+        {Array.from({ length: total }, (_, i) => <i key={i} className={i < step ? "on" : ""} />)}
+      </div>
+    </div>
+  );
+}

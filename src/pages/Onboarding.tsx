@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ageOn } from "../../shared/rules";
 import { api } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, heightCm, profileBody, RacquetEditor, StyleFields, type Draft } from "../forms";
-import { Avatar, ErrorText, Loading, TopBar, useSession } from "../ui";
+import { Avatar, ErrorText, Loading, StepBar, TopBar, useSession } from "../ui";
 
 const STEPS = ["about", "style", "courts", "racquets", "photo"] as const;
 const TITLES = {
@@ -54,7 +54,7 @@ export function Onboarding() {
     <>
       <TopBar title="Create account" back={i === 0 ? undefined : () => setI(i - 1)} />
       <main className="narrow">
-        <div className="steps">{Array.from({ length: 7 }, (_, k) => <i key={k} className={k <= i + 2 ? "on" : ""} />)}</div>
+        <StepBar step={i + 3} />
         <div className="stitle">{TITLES[step][0]}</div>
         <p className="ssub">{TITLES[step][1]}</p>
         {step === "about" && <AboutFields d={d} set={set} />}

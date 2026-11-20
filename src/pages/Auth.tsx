@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { Avatar, ErrorText, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, StepBar, TopBar, useSession, useUi } from "../ui";
 import { CheckCircle } from "../icons";
 
 /** A still of the product on the welcome page: one confirmed score card and the confirmation that made it official. */
@@ -133,7 +133,7 @@ export function Signup() {
     <>
       <TopBar title="Create account" back="/" />
       <main className="narrow">
-        <div className="steps">{Array.from({ length: 7 }, (_, i) => <i key={i} className={i === 0 ? "on" : ""} />)}</div>
+        <StepBar step={1} />
         <form onSubmit={submit}>
           <div className="stitle">Let's get you on court</div>
           <p className="ssub">Your name builds your player ID.</p>
@@ -186,7 +186,7 @@ export function Verify() {
     <>
       <TopBar title="Create account" back="/signup" />
       <main className="narrow">
-        <div className="steps">{Array.from({ length: 7 }, (_, i) => <i key={i} className={i <= 1 ? "on" : ""} />)}</div>
+        <StepBar step={2} />
         <form onSubmit={submit}>
           <div className="stitle">Check your email</div>
           <p className="ssub">Enter the 6-digit code we sent to <b>{email}</b>. It expires in 10 minutes.</p>
