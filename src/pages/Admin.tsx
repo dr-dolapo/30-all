@@ -1,14 +1,15 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
 import { Eye, EyeSlash } from "../icons";
-import { Avatar, ErrorText, RecordBlock, fullName, Loading, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, RecordBlock, useThemeColor, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
 type Tab = "courts" | "users" | "photos";
 
 export function Admin() {
   const { me } = useSession(); const nav = useNavigate();
+  useThemeColor("#111111");
   const [params, setParams] = useSearchParams();
   const tab = (["courts", "users", "photos"].includes(params.get("tab") ?? "") ? params.get("tab") : "courts") as Tab;
   const setTab = (t: Tab) => setParams({ tab: t }, { replace: true });
@@ -161,9 +162,9 @@ function Users() {
       <div className="cardgrid">
       {shown.map((u) => (
         <div className="card" key={u.id}>
-          <div className="pl" style={{ paddingTop: 0 }}>
+          <div className="pl top-align" style={{ paddingTop: 0 }}>
             <Avatar u={u} size={40} />
-            <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid} · {u.email}</div></div>
+            <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid}</div><div className="id one-line" title={u.email}>{u.email}</div></div>
             <button className="btn sm ghost" style={{ flex: "none" }} onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button>
           </div>
           <dl className="kv" style={{ fontSize: 13 }}>
@@ -307,8 +308,10 @@ export function AdminUserPage() {
                   {u.status === "suspended" ? "Unsuspend" : "Suspend"}
                 </button>
               )}
-              <button className="btn bad" onClick={() => confirm({ title: `Delete ${fullName(u)}?`, body: "Their login and personal details are removed. Their name stays on past confirmed matches so opponents' records stay right. Their pending scores are closed. This can't be undone.", ok: "Delete", danger: true,
-                onOk: async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } } })}>Delete player</button>
+              <HoldButton label="Hold to delete player" ms={1500}
+                onConfirm={async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } }}
+                onKeyboard={() => confirm({ title: `Delete ${fullName(u)}?`, body: "Their login and personal details are removed. Their name stays on past confirmed matches so opponents' records stay right. Their pending scores are closed. This can't be undone.", ok: "Delete", danger: true,
+                  onOk: async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } } })} />
             </div>
           )}
         </div>
@@ -338,5 +341,29 @@ function Photos() {
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * Hold-to-confirm for destructive actions: a fill sweeps across while held (slow, deliberate),
+ * and snaps back fast if released early. Keyboard activation falls back to a confirm dialog.
+ */
+function HoldButton({ label, ms, onConfirm, onKeyboard }: { label: string; ms: number; onConfirm: () => void; onKeyboard: () => void }) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const start = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setHolding(true);
+    timer.current = window.setTimeout(() => { setHolding(false); onConfirm(); }, ms);
+  };
+  const cancel = () => { window.clearTimeout(timer.current); setHolding(false); };
+  return (
+    <button type="button" className="btn bad hold" data-holding={holding || undefined} style={{ ["--hold" as any]: `${ms}ms` }}
+      onPointerDown={start} onPointerUp={cancel} onPointerCancel={cancel} onLostPointerCapture={cancel}
+      onClick={(e) => { if (e.detail === 0) onKeyboard(); }} onContextMenu={(e) => e.preventDefault()}>
+      <span className="hold-fill" aria-hidden="true"><span>{label}</span></span>
+      <span className="hold-label">{label}</span>
+    </button>
   );
 }

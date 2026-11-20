@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { Avatar, ErrorText, StepBar, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, StepBar, TopBar, useSession, useThemeColor, useUi } from "../ui";
 import { CheckCircle } from "../icons";
 
 /** A still of the product on the welcome page: one confirmed score card and the confirmation that made it official. */
@@ -24,6 +24,7 @@ function WelcomeShowcase() {
 
 export function Welcome() {
   const nav = useNavigate();
+  useThemeColor("#FF751F");
   return (
     <div className="welcome">
       <div>
@@ -159,11 +160,13 @@ export function Verify() {
   const [params] = useSearchParams(); const email = params.get("email") ?? "";
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [err, setErr] = useState(""); const [wait, setWait] = useState(60);
+  const [shake, setShake] = useState(0);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   useEffect(() => { refs.current[0]?.focus(); }, []);
   useEffect(() => { if (wait <= 0) return; const t = setTimeout(() => setWait(wait - 1), 1000); return () => clearTimeout(t); }, [wait]);
 
   const setDigit = (i: number, v: string) => {
+    if (err) setErr("");
     const clean = v.replace(/\D/g, "");
     if (clean.length > 1) { // pasted the whole code
       const all = clean.slice(0, 6).split(""); setDigits([...all, ...Array(6 - all.length).fill("")]); refs.current[Math.min(all.length, 5)]?.focus(); return;
@@ -176,7 +179,7 @@ export function Verify() {
     const code = digits.join("");
     if (code.length < 6) return setErr("Enter all 6 digits");
     try { await api.post("/auth/verify", { email, code }); toast("Email verified"); await refresh(); nav("/onboarding"); }
-    catch (e: any) { setErr(e.message); }
+    catch (e: any) { setErr(e.message); setShake((n) => n + 1); refs.current[5]?.select(); }
   };
   const resend = async () => {
     try { await api.post("/auth/resend", { email }); setWait(60); toast("A new code is on its way."); }
@@ -190,7 +193,7 @@ export function Verify() {
         <form onSubmit={submit}>
           <div className="stitle">Check your email</div>
           <p className="ssub">Enter the 6-digit code we sent to <b>{email}</b>. It expires in 10 minutes.</p>
-          <div className="codeboxes">
+          <div className={"codeboxes" + (err ? " bad" : "")} data-shake={shake % 2 ? "a" : shake ? "b" : undefined}>
             {digits.map((d, i) => (
               <input key={i} ref={(el) => (refs.current[i] = el)} inputMode="numeric" autoComplete={i === 0 ? "one-time-code" : "off"} aria-label={`Digit ${i + 1}`}
                 value={d} onChange={(e) => setDigit(i, e.target.value)}

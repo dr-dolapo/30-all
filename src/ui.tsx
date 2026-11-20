@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { avatarSVG } from "../shared/avatars";
 import { FORMATS } from "../shared/rules";
@@ -30,25 +30,14 @@ const UiCtx = createContext<{ toast: (msg: ReactNode) => void; confirm: (o: Dial
 export const useUi = () => useContext(UiCtx);
 
 export function UiProvider({ children }: { children: ReactNode }) {
-  const [msg, setMsg] = useState<ReactNode>(null);
+  const [msg, setMsg] = useState<{ id: number; node: ReactNode } | null>(null);
   const [dlg, setDlg] = useState<DialogOpts | null>(null);
-  useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 3500); return () => clearTimeout(t); }, [msg]);
+  const toast = useCallback((node: ReactNode) => setMsg({ id: Date.now(), node }), []);
   return (
-    <UiCtx.Provider value={{ toast: setMsg, confirm: setDlg }}>
+    <UiCtx.Provider value={{ toast, confirm: setDlg }}>
       {children}
-      {msg && <div className="toast" role="status">{msg}</div>}
-      {dlg && (
-        <div className="dialog-bg" onClick={(e) => e.target === e.currentTarget && setDlg(null)}>
-          <div className="dialog" role="dialog" aria-modal="true">
-            <h3>{dlg.title}</h3>
-            <div style={{ color: "var(--ink2)", marginBottom: 16 }}>{dlg.body}</div>
-            <div className="row">
-              <button className="btn ghost" onClick={() => setDlg(null)}>Cancel</button>
-              <button className={"btn" + (dlg.danger ? " bad" : "")} onClick={async () => { const d = dlg; setDlg(null); await d.onOk(); }}>{dlg.ok}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {msg && <Toast key={msg.id} onDone={() => setMsg(null)}>{msg.node}</Toast>}
+      {dlg && <ConfirmDialog key={dlg.title} opts={dlg} onDone={() => setDlg(null)} />}
     </UiCtx.Provider>
   );
 }
@@ -78,7 +67,7 @@ export function BottomNav({ pending = 0 }: { pending?: number }) {
   const { me } = useSession();
   const item = (to: string, icon: (on: boolean) => ReactNode, label: string, badge?: number) => (
     <NavLink to={to} className={({ isActive }) => (isActive ? "act" : "")}>
-      {({ isActive }) => <>{icon(isActive)}{badge ? <span className="badge">{badge}</span> : null}{label}</>}
+      {({ isActive }) => <>{icon(isActive)}{badge ? <span className="badge">{badge > 99 ? "99+" : badge}</span> : null}{label}</>}
     </NavLink>
   );
   return (
@@ -119,7 +108,7 @@ function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
       <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
         {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
       </div>
-      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
+      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} title={fullName(p)}><span className="fn">{p.first}</span><span className="ln">{p.last.charAt(0)}.</span></Link>)}</div>
     </div>
   );
 }
@@ -225,4 +214,61 @@ export function RecordBlock({ record }: { record: { played: number; won: number;
       )}
     </div>
   );
+}
+
+/** Sets the phone's status-bar colour to match the top of the current screen, and restores white on leave. */
+export function useThemeColor(color: string) {
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute("content", color);
+    return () => meta?.setAttribute("content", "#FFFFFF");
+  }, [color]);
+}
+
+/**
+ * Enter/exit for overlays (sheets, dialogs). Renders with data-state="enter", flips to "open" on the next frame
+ * so CSS transitions run, and on close plays the exit before unmounting. CSS owns the motion.
+ */
+export function usePresence(onClose: () => void, exitMs = 240) {
+  const [state, setState] = useState<"enter" | "open" | "exit">("enter");
+  const closing = useRef(false);
+  useEffect(() => {
+    let r2 = 0;
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setState("open")); });
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+  }, []);
+  const close = useCallback((after?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    setState("exit");
+    setTimeout(() => (after ?? onClose)(), exitMs);
+  }, [onClose, exitMs]);
+  return { state, close };
+}
+
+function ConfirmDialog({ opts, onDone }: { opts: DialogOpts; onDone: () => void }) {
+  const { state, close } = usePresence(onDone, 160);
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
+  }, [close]);
+  return (
+    <div className="dialog-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="dialog" role="dialog" aria-modal="true" data-state={state}>
+        <h3>{opts.title}</h3>
+        <div style={{ color: "var(--ink2)", marginBottom: 16 }}>{opts.body}</div>
+        <div className="row">
+          <button className="btn ghost" onClick={() => close()}>Cancel</button>
+          <button className={"btn" + (opts.danger ? " bad" : "")} onClick={() => { close(); opts.onOk(); }}>{opts.ok}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A toast enters from the top edge and leaves by the same edge (Sonner's 400ms ease). */
+function Toast({ children, onDone }: { children: ReactNode; onDone: () => void }) {
+  const { state, close } = usePresence(onDone, 300);
+  useEffect(() => { const t = setTimeout(() => close(), 3500); return () => clearTimeout(t); }, [close]);
+  return <div className="toast" role="status" data-state={state} onClick={() => close()}>{children}</div>;
 }
