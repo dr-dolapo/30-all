@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
-import { Avatar, BottomNav, ErrorText, fullName, Loading, ScoreCard, TopBar, useSession } from "../ui";
+import { Avatar, BottomNav, ErrorText, fullName, Loading, RecordBlock, ScoreCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
 import { Star } from "../icons";
 
@@ -67,8 +67,7 @@ export function ProfileSections({ u, courts, racquets, record, private: priv }: 
       </div>
       {record && (
         <>
-          <div className="stats"><div><b>{record.played}</b><span>Played</span></div><div><b style={{ color: "var(--ok)" }}>{record.won}</b><span>Won</span></div><div><b>{record.lost}</b><span>Lost</span></div></div>
-          {record.form.length > 0 && <div style={{ textAlign: "center", marginTop: 10 }} className="small">Recent form<div className="form">{record.form.map((x, i) => <i key={i} className={x === "W" ? "w" : "l"}>{x}</i>)}</div></div>}
+          <RecordBlock record={record} />
         </>
       )}
       <div className="profgrid">

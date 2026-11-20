@@ -377,3 +377,11 @@ main.narrow > form{padding-top:6px}
 .sc-actions{margin-top:12px;padding:0 4px}
 .sc-actions .acts{margin-top:0}
 .sheet .scard{background:#F4F4F4}
+/* design 12: one big record instead of three equal boxes */
+.record{text-align:center;margin:16px 0 4px}
+.rec-big{display:inline-flex;align-items:baseline;gap:6px;font-size:44px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.rec-dash{color:#BDBDBD;font-weight:600}
+.rec-sub{font-size:13px;color:var(--mute);margin-top:6px}
+.rec-form{display:flex;gap:4px;justify-content:center;margin-top:10px}
+.rec-form i{width:22px;height:22px;border-radius:6px;font-style:normal;font-size:11px;font-weight:700;display:grid;place-items:center;color:#fff}
+.rec-form i.w{background:var(--ok)} .rec-form i.l{background:#BDBDBD}

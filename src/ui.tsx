@@ -208,3 +208,21 @@ export function StepBar({ step, total = 7 }: { step: number; total?: number }) {
     </div>
   );
 }
+
+/** A player's record: one big win–loss figure, win rate, and recent form. */
+export function RecordBlock({ record }: { record: { played: number; won: number; lost: number; form: string[] } }) {
+  const pct = record.played ? Math.round((record.won / record.played) * 100) : null;
+  return (
+    <div className="record">
+      <div className="rec-big" aria-label={`${record.won} won, ${record.lost} lost`}>
+        <span>{record.won}</span><span className="rec-dash">–</span><span>{record.lost}</span>
+      </div>
+      <div className="rec-sub">{record.played ? `${pct}% won · ${record.played} played` : "No matches yet"}</div>
+      {record.form.length > 0 && (
+        <div className="rec-form" aria-label="Recent form, newest first">
+          {record.form.map((x, i) => <i key={i} className={x === "W" ? "w" : "l"}>{x}</i>)}
+        </div>
+      )}
+    </div>
+  );
+}

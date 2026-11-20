@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
 import { Eye, EyeSlash } from "../icons";
-import { Avatar, ErrorText, fullName, Loading, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, RecordBlock, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
 type Tab = "courts" | "users" | "photos";
 
@@ -241,7 +241,7 @@ export function AdminUserPage() {
           <div className="idtag">{u.pid}</div>
           <div style={{ marginTop: 8 }}><StatusPills u={u} /></div>
         </div>
-        <div className="stats"><div><b>{u.record.played}</b><span>Played</span></div><div><b style={{ color: "var(--ok)" }}>{u.record.won}</b><span>Won</span></div><div><b>{u.record.lost}</b><span>Lost</span></div></div>
+        <RecordBlock record={u.record} />
 
         <div className="profgrid">
           <div className="span-all">
