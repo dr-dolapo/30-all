@@ -29,6 +29,7 @@ export function Players() {
     </div>
   );
   const favs = (all ?? []).filter((u) => me.favourites.includes(u.id));
+  const others = (all ?? []).filter((u) => !me.favourites.includes(u.id));
   return (
     <>
       <TopBar title="Players" />
@@ -40,8 +41,8 @@ export function Players() {
           <>
             <div className="h2" style={{ marginTop: 16 }}>Favourites</div>
             <div className="card" style={{ padding: "4px 14px" }}>{favs.length ? favs.map(row) : <div className="empty">Tap the star next to a player you play often.</div>}</div>
-            <div className="h2">Everyone</div>
-            <div className="card" style={{ padding: "4px 14px" }}>{all.length ? all.map(row) : <div className="empty">No other players yet. Invite your friends!</div>}</div>
+            <div className="h2">{favs.length ? "Other players" : "Everyone"}</div>
+            <div className="card" style={{ padding: "4px 14px" }}>{others.length ? others.map(row) : <div className="empty">{all.length ? "Everyone you know is in your favourites." : "No other players yet. Invite your friends!"}</div>}</div>
           </>
         )}
       </main>
