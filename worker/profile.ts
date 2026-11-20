@@ -4,6 +4,7 @@ import { ageOn, isISODate, MIN_AGE } from "../shared/rules";
 import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { PUBLIC_COLS, publicUser, recordFor, sideOf, userCourts, userRacquets, photoUrl } from "./queries";
+import { emphasise } from "../shared/notifText";
 
 export const profile = new Hono<AppEnv>();
 
@@ -117,7 +118,7 @@ profile.put("/me", requireUser({ allowOnboarding: true }), async (c) => {
     const missing = [!fresh.gender && "gender", !fresh.dob && "date of birth", !fresh.nationality && "nationality", !fresh.hand && "handedness", !home && "home court", !rq && "a racquet"].filter(Boolean);
     if (missing.length) throw bad(`Still needed: ${missing.join(", ")}`);
     await c.env.DB.prepare("UPDATE users SET status = 'active' WHERE id = ?").bind(u.id).run();
-    await c.env.DB.prepare("INSERT INTO notifications (id,user_id,text,created_at) VALUES (?,?,?,?)").bind(newId(), u.id, `Welcome to 30-All! Your player ID is ${u.pid}.`, now()).run();
+    await c.env.DB.prepare("INSERT INTO notifications (id,user_id,text,created_at) VALUES (?,?,?,?)").bind(newId(), u.id, emphasise(`Welcome to 30-All! Your player ID is ${u.pid}.`), now()).run();
   }
   return c.json({ ok: true });
 });
@@ -250,8 +251,9 @@ profile.get("/favourites", requireUser(), async (c) => {
 
 profile.get("/notifications", requireUser(), async (c) => {
   const { results } = await c.env.DB.prepare("SELECT id, text, match_id AS matchId, created_at AS at, read_at AS readAt FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 100")
-    .bind(c.get("user").id).all();
-  return c.json(results);
+    .bind(c.get("user").id).all<{ text: string }>();
+  // older notifications were stored as plain text; mark their key details on the way out
+  return c.json(results.map((n) => ({ ...n, text: emphasise(n.text) })));
 });
 
 profile.post("/notifications/read", requireUser(), async (c) => {

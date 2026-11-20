@@ -18,6 +18,9 @@ function kindOf(text: string) {
   return { icon: <TennisBall size={18} weight="fill" />, tone: "o" };
 }
 
+/** Renders **marked** details in bold. Text is split, never parsed as HTML. */
+const richText = (text: string) => text.split("**").map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+
 /** Groups notifications under Today, Yesterday and Earlier. */
 function groupByDay<T extends { at: number }>(list: T[]): Array<[string, T[]]> {
   const day = (t: number) => new Date(t + 3600_000).toISOString().slice(0, 10); // Lagos date
@@ -44,11 +47,11 @@ export function Inbox() {
               <div className="h2">{label}</div>
               <div className="card" style={{ padding: "0 14px" }}>
                 {items.map((n) => {
-                  const k = kindOf(n.text);
+                  const k = kindOf(n.text.replace(/\*\*/g, ""));
                   return (
                     <div key={n.id} className={"notif" + (n.readAt ? "" : " unread")} style={n.matchId ? { cursor: "pointer" } : undefined} onClick={() => n.matchId && nav("/matches")}>
                       <span className={"nicon " + k.tone} aria-hidden="true">{k.icon}</span>
-                      <div className="nbody"><div className="t">{n.text}</div><div className="tm">{ago(n.at)}</div></div>
+                      <div className="nbody"><div className="t">{richText(n.text)}</div><div className="tm">{ago(n.at)}</div></div>
                       {!n.readAt && <span className="dotu" aria-label="Unread" />}
                     </div>
                   );

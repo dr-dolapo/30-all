@@ -128,7 +128,6 @@ label.f .req{color:var(--o-dark)}
 .form i{width:22px;height:22px;border-radius:6px;font-style:normal;font-size:11px;font-weight:700;display:grid;place-items:center;color:#fff}
 .form i.w{background:var(--ok)} .form i.l{background:#BDBDBD}
 .notif{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #F0F0F0}
-.notif.unread .t{font-weight:600}
 .notif .dotu{width:8px;height:8px;border-radius:50%;background:var(--o);margin-top:6px;flex:none}
 .notif .dotr{width:8px;flex:none}
 .notif .tm{font-size:12px;color:var(--mute);margin-top:2px}
@@ -400,7 +399,7 @@ main.narrow > form{padding-top:6px}
 /* design 15: inbox icons, day groups, calmer text */
 .notif{align-items:flex-start;gap:12px}
 .notif .t{font-weight:400;font-size:14px;line-height:1.4;color:var(--ink2)}
-.notif.unread .t{font-weight:600;color:var(--ink)}
+/* unread is shown by the orange dot alone, so bold stays for key details */
 .nbody{flex:1;min-width:0}
 .nicon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
 .nicon.ok{background:var(--ok-soft);color:var(--ok)}
@@ -409,7 +408,7 @@ main.narrow > form{padding-top:6px}
 .nicon.o{background:var(--o-soft);color:var(--o-dark)}
 .nicon.info{background:#EEF1F4;color:#4A5563}
 .notif .dotu{margin-top:13px}
-.notif.unread .t{font-weight:500}
+
 /* design 16: admin sections as a segmented switch; Edit in each player's header */
 .admin-seg{margin-bottom:16px;max-width:420px}
 
@@ -552,3 +551,13 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .se-row.lost b{color:#B9B9B9}
 .se-row.lost small{color:#CFCFCF}
 @media (prefers-reduced-motion: reduce){.se-win{animation-name:se-win-fade}@keyframes se-win-fade{from{opacity:0}}}
+.notif .t b{font-weight:700;color:var(--ink)}
+/* photo cropper: drag and zoom so the face sits inside the round avatar */
+.dialog.cropper{max-width:340px;text-align:center}
+.crop-area{position:relative;margin:0 auto;overflow:hidden;border-radius:14px;background:#111;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.crop-area:active{cursor:grabbing}
+.crop-area img{position:absolute;left:50%;top:50%;max-width:none;pointer-events:none}
+.crop-mask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);outline:2px solid rgba(255,255,255,.9);outline-offset:-2px;pointer-events:none}
+.crop-wait{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:14px}
+.crop-zoom{display:flex;align-items:center;gap:10px;margin:16px auto 0;max-width:260px;font-size:20px;font-weight:600;color:var(--mute)}
+.crop-zoom input{flex:1;accent-color:var(--o)}
