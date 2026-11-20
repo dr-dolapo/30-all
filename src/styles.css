@@ -517,3 +517,16 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .hold-label{position:relative}
 .hold-fill{z-index:1}
 @media (hover:hover) and (pointer:fine){.btn.hold:hover{background:#F2CFCF}}
+/* motion 12: a once-per-player celebration — avatar, then heading, then the ID rolls in */
+.done .done-av{animation:done-av 520ms var(--ease-out) both}
+.done .done-in{animation:done-in 420ms var(--ease-out) 120ms both}
+.done .done-in.late{animation-delay:760ms}
+.idroll{display:inline-flex;overflow:hidden}
+.idroll span{display:inline-block;animation:idroll 420ms var(--ease-out) both}
+@keyframes done-av{from{opacity:0;transform:scale(.9)}}
+@keyframes done-in{from{opacity:0;transform:translateY(8px)}}
+@keyframes idroll{from{opacity:0;transform:translateY(70%)}}
+@media (prefers-reduced-motion: reduce){
+  .done .done-av,.done .done-in,.idroll span{animation-name:fade-only}
+  @keyframes fade-only{from{opacity:0}}
+}

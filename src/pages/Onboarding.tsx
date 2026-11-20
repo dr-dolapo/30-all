@@ -76,13 +76,16 @@ export function Done() {
   useThemeColor("#FF751F");
   if (!me) return <Loading />;
   return (
-    <div className="welcome" style={{ textAlign: "center", alignItems: "center" }}>
+    <div className="welcome done" style={{ textAlign: "center", alignItems: "center" }}>
       <div>
-        <Avatar u={me} size={110} />
-        <h2>You're in, {me.first}!</h2>
-        <p>Your unique player ID</p>
-        <div className="idtag" style={{ fontSize: 22, padding: "8px 16px", background: "#111" }}>{me.pid}</div>
-        <p style={{ fontSize: 14, marginTop: 14 }}>Friends can find you by name or by this ID.</p>
+        <div className="done-av"><Avatar u={me} size={110} /></div>
+        <h2 className="done-in">You're in, {me.first}!</h2>
+        <p className="done-in">Your unique player ID</p>
+        <div className="idtag idroll" aria-label={me.pid} style={{ fontSize: 22, padding: "8px 16px", background: "#111" }}>
+          {/* each character rolls up like a scoreboard digit; gaps are uneven on purpose */}
+          {me.pid.split("").map((ch, i) => <span key={i} aria-hidden="true" style={{ animationDelay: `${260 + [0, 45, 110, 150, 205, 240, 290, 320, 360, 395][i % 10]}ms` }}>{ch}</span>)}
+        </div>
+        <p className="done-in late" style={{ fontSize: 14, marginTop: 14 }}>Friends can find you by name or by this ID.</p>
       </div>
       <div style={{ width: "100%" }}><button className="btn" onClick={() => nav("/matches")}>Go to matches</button></div>
     </div>
