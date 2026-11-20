@@ -216,11 +216,17 @@ profile.get("/players/:id", requireUser(), async (c) => {
     c.env.DB.prepare("SELECT 1 FROM favourites WHERE user_id = ? AND fav_id = ?").bind(me.id, id).first(),
   ]);
   const h2h = rec.matches.filter((m) => { const a = sideOf(m, id), b = sideOf(m, me.id); return a && b && a !== b; });
+  // play tracker: confirmed matches per day played (Lagos dates), from when they joined or first played
+  const days: Record<string, number> = {};
+  for (const m of rec.matches) days[m.date] = (days[m.date] ?? 0) + 1;
+  const joined = await c.env.DB.prepare("SELECT date(created_at / 1000 + 3600, 'unixepoch') AS d FROM users WHERE id = ?").bind(id).first<{ d: string }>();
+  const since = [joined?.d, ...Object.keys(days)].filter(Boolean).sort()[0] as string;
   return c.json({
     ...publicUser(u),
     courts: courts.filter((ct) => ct.status === "approved" || id === me.id), // others see pending courts only once approved
     racquets, record: { played: rec.played, won: rec.won, lost: rec.lost, form: rec.form },
     isFavourite: !!fav,
+    activity: { days, since },
     h2h: { played: h2h.length, myWins: h2h.filter((m) => m.winner === sideOf(m, me.id)).length, matches: h2h },
   });
 });

@@ -19,7 +19,7 @@ export interface Match {
 }
 export interface PlayerProfile extends PublicUser {
   courts: CourtRef[]; racquets: Racquet[]; record: { played: number; won: number; lost: number; form: string[] };
-  isFavourite: boolean; h2h: { played: number; myWins: number; matches: Match[] };
+  isFavourite: boolean; activity: { days: Record<string, number>; since: string }; h2h: { played: number; myWins: number; matches: Match[] };
 }
 export interface Notification { id: string; text: string; matchId: string | null; at: number; readAt: number | null }
 
