@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
 import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, usePresence, useSession, useThemeColor, useUi } from "../ui";
-import { CalendarDots, CaretRight, Plus, Trophy, X } from "../icons";
+import { CalendarDots, CaretRight, Plus, X } from "../icons";
 
 /* ---------- helpers ---------- */
 
@@ -332,10 +332,12 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
 
-  const playerRow = (u: PublicUser | null, label: string, slot?: Slot) => u ? (
-    <button className="se-row" disabled={!slot} onClick={() => slot && setPicker(slot)}>
+  const winner = !score.error && playersReady ? score.winner : undefined;
+  const playerRow = (u: PublicUser | null, label: string, team: "A" | "B", slot?: Slot) => u ? (
+    <button className={"se-row" + (winner && winner !== team ? " lost" : "")} disabled={!slot} onClick={() => slot && setPicker(slot)}>
       <Avatar u={u} size={40} />
       <span className="se-who"><b>{fullName(u)}</b><small>{label}</small></span>
+      {winner === team && <span className="se-win">WIN</span>}
       {slot && <span className="se-change">Change</span>}
     </button>
   ) : (
@@ -350,7 +352,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
       <div className="sheet addsheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add a score">
         <div className="grabber" aria-hidden="true" />
         <div className="sheet-head">
-          <h3>{phase === 1 ? "Add a score" : "Players & score"}</h3>
+          <h3>{phase === 1 ? "Add a score" : "Score"}</h3>
           <span className="small">Step {phase} of 2</span>
           <button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button>
         </div>
@@ -382,8 +384,8 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
         ) : (
           <>
             <div className="se">
-              {playerRow(me, isD ? "TEAM 1" : "PLAYER 1")}
-              {isD && playerRow(people.partner, "TEAM 1", "partner")}
+              {playerRow(me, isD ? "TEAM 1" : "PLAYER 1", "A")}
+              {isD && playerRow(people.partner, "TEAM 1", "A", "partner")}
               <div className="se-score" style={{ gridTemplateColumns: `repeat(${cols}, 56px)` }}>
                 {Array.from({ length: cols }, (_, i) => {
                   const off = F.sets === 3 && i === 2 && thirdOff;
@@ -397,17 +399,10 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
                   );
                 })}
               </div>
-              {playerRow(people.opp0, isD ? "TEAM 2" : "PLAYER 2", "opp0")}
-              {isD && playerRow(people.opp1, "TEAM 2", "opp1")}
+              {playerRow(people.opp0, isD ? "TEAM 2" : "PLAYER 2", "B", "opp0")}
+              {isD && playerRow(people.opp1, "TEAM 2", "B", "opp1")}
             </div>
-            <p className="hint" style={{ textAlign: "center" }}>
-              Top boxes: {teamA}. Bottom boxes: {teamB}.{" "}
-              {F.kind === "stb" ? "First to 10, won by 2." : F.target === 6 ? "At 6-6, enter the tie-break set as 7-6." : "At 4-4, enter the tie-break set as 5-4."}
-              {F.sets === 3 && " Set 3 opens at one set all."}
-            </p>
-            {score.error ? <div className="err" style={{ textAlign: "center" }}>{score.error}</div> : score.winner && playersReady && (
-              <div style={{ textAlign: "center", fontWeight: 700, color: "var(--ok)", marginTop: 4 }}><Trophy size={18} weight="fill" style={{ verticalAlign: "-3px" }} /> {score.winner === "A" ? teamA : teamB} {(score.winner === "A" ? teamA : teamB).includes("&") ? "win" : "wins"}</div>
-            )}
+            {score.error && <div className="err" style={{ textAlign: "center" }}>{score.error}</div>}
             <ErrorText msg={err} />
             <div className="row" style={{ marginTop: 16 }}>
               <button className="btn ghost" onClick={() => { setErr(""); setPhase(1); }}>Back</button>

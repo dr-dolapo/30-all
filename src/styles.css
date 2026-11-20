@@ -540,3 +540,11 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .pl .av,.pl .btn,.pl .star{flex-shrink:0}
 .badge{white-space:nowrap}
 .sc-names .ln{flex:none;margin-left:.28em}
+/* score entry: the winner gets a WIN tag, the loser greys out */
+.se-win{margin-left:auto;background:var(--ok);color:#fff;font-size:12px;font-weight:800;letter-spacing:.06em;padding:5px 10px;border-radius:6px;flex:none;animation:se-win 200ms var(--ease-out,ease-out)}
+.se-win+.se-change{margin-left:12px}
+@keyframes se-win{from{opacity:0;transform:scale(.95)}}
+.se-row b,.se-row small{transition:color 200ms ease}
+.se-row.lost b{color:#B9B9B9}
+.se-row.lost small{color:#CFCFCF}
+@media (prefers-reduced-motion: reduce){.se-win{animation-name:se-win-fade}@keyframes se-win-fade{from{opacity:0}}}
