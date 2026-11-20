@@ -531,7 +531,7 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
   @keyframes fade-only{from{opacity:0}}
 }
 /* 13: long names and emails never break a layout (worst-case data) */
-.sc-names a{white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sc-names a{white-space:normal;overflow-wrap:break-word;hyphens:auto;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pl .nm{overflow-wrap:anywhere}
 .pl .id{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .one-line{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
