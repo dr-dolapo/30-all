@@ -144,6 +144,7 @@ function LoveLove() {
 function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClose: () => void; onChanged: () => void }) {
   const { me } = useSession(); const { toast, confirm } = useUi();
   const { state, close } = usePresence(onClose, 280);
+  const [leaving, setLeaving] = useState<string | null>(null);
   if (!me) return null;
   const toAnswer = pending.filter((m) => m.teamB.some((p) => p.id === me.id));
   const waiting = pending.filter((m) => m.teamA.some((p) => p.id === me.id));
@@ -151,9 +152,13 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
     try {
       if (action === "delete") await api.del(`/matches/${m.id}`); else await api.post(`/matches/${m.id}/${action}`);
       toast(action === "accept" ? "Score accepted. Everyone in the match has been notified." : action === "reject" ? "Score rejected. Everyone in the match has been notified." : "Pending score deleted.");
-      onChanged();
+      setLeaving(m.id); // fold the answered card away, then refresh the list
+      setTimeout(onChanged, 300);
     } catch (e: any) { toast(e.message); }
   };
+  const item = (m: Match) => (
+    <div key={m.id} className="leave-wrap" data-leaving={leaving === m.id || undefined}><div className="leave-inner"><ScoreCard m={m} showDate actions={actions(m)} /></div></div>
+  );
   const actions = (m: Match) => {
     if (m.teamB.some((p) => p.id === me.id)) return (
       <div className="acts">
@@ -168,8 +173,8 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
     <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
       <div className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Pending scores">
         <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
-        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
-        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
+        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map(item)}</>}
+        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map(item)}</>}
         {pending.length === 0 && <div className="empty">Nothing pending. Every score has been answered.</div>}
         <p className="small" style={{ textAlign: "center", marginTop: 6 }}>Scores not accepted within 7 days are rejected automatically.</p>
       </div>

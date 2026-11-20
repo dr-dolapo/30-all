@@ -492,3 +492,8 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .dayview[data-loading]{opacity:.55;transition:opacity 120ms ease 80ms}
 @keyframes dayin{from{opacity:0}}
 @media (prefers-reduced-motion: reduce){.dayview{animation:none}}
+/* motion 8: an answered score folds away and the list closes the gap */
+.leave-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows 300ms var(--ease-out),opacity 200ms ease}
+.leave-wrap[data-leaving]{grid-template-rows:0fr;opacity:0}
+.leave-inner{min-height:0;overflow:hidden}
+@media (prefers-reduced-motion: reduce){.leave-wrap{transition:opacity 200ms ease}}
