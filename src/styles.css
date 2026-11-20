@@ -335,3 +335,11 @@ a{color:inherit}
 .btn.ghost:hover{background:#E2E2E2}
 .welcome .btn.ghost{background:#EE6A15;color:#111;border:0}
 .welcome .btn.ghost:hover{background:#E5620F}
+/* design 5: cards separate by fill, not by an outline */
+:root{--bg:#EEEEEE}
+html,body{background:#E4E4E4}
+.card,.match,.stats div,.rq{border:0}
+.top{border-bottom-color:#E6E6E6}
+.nav{border-top-color:#E6E6E6}
+.btn.ghost{background:#E1E1E1}
+.btn.ghost:hover{background:#D6D6D6}
