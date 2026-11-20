@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { avatarSVG } from "../shared/avatars";
 import { FORMATS } from "../shared/rules";
 import { api, type Match, type Me, type PublicUser } from "./api";
-import { Bell, CaretLeft, CaretRight, Check, MapPin, TennisBall, User, UsersThree } from "./icons";
+import { Bell, CaretLeft, CaretRight, TennisBall, User, UsersThree } from "./icons";
 
 /* ---------- session context ---------- */
 
@@ -107,21 +107,27 @@ export const ago = (t: number) => {
   return `${Math.round(h / 24)}d ago`;
 };
 
-/* ---------- match card ---------- */
+/* ---------- score card (the one match card used everywhere) ---------- */
 
-export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
-  const F = FORMATS[m.format];
-  const line = (side: "A" | "B") => {
-    const team = side === "A" ? m.teamA : m.teamB, win = m.winner === side && m.status === "confirmed";
-    return (
-      <div className={"mline" + (m.winner === side ? " win" : "")}>
-        <span className="tick">{win ? <Check size={14} weight="bold" /> : null}</span>
-        <span style={{ display: "flex" }}>{team.map((p) => <Avatar key={p.id} u={p} size={26} />)}</span>
-        <span className="who">{team.map((p, i) => <span key={p.id}>{i > 0 && " & "}<Link to={`/players/${p.id}`} style={{ textDecoration: "none" }}>{fullName(p)}</Link></span>)}</span>
-        <span className="sc">{m.sets.map((s, i) => <span key={i}>{side === "A" ? s[0] : s[1]}</span>)}</span>
+const shortName = (p: PublicUser) => `${p.first} ${p.last.charAt(0)}.`;
+const byName = (a: PublicUser, b: PublicUser) => `${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`);
+
+function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
+  const ps = [...team].sort(byName); // always alphabetical, not by who entered the score
+  return (
+    <div className={"sc-team" + (won ? " won" : " lost")}>
+      <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
+        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
       </div>
-    );
-  };
+      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
+    </div>
+  );
+}
+
+/** Winner on the left (bold), loser on the right (grey), each set's winning score bold, court at the bottom. */
+export function ScoreCard({ m, showDate, actions }: { m: Match; showDate?: boolean; actions?: ReactNode }) {
+  const W = m.winner === "A" ? m.teamA : m.teamB, L = m.winner === "A" ? m.teamB : m.teamA;
+  const sets = m.sets.map(([a, b]) => (m.winner === "A" ? [a, b] : [b, a]));
   let status: ReactNode = null;
   if (m.status === "pending") {
     const left = Math.max(0, Math.ceil(((m.expiresAt ?? m.submittedAt + 7 * 864e5) - Date.now()) / 864e5));
@@ -129,14 +135,26 @@ export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
   }
   if (m.status === "rejected") status = <span className="pill bad">Rejected</span>;
   if (m.status === "expired") status = <span className="pill bad">Expired</span>;
-  const submitter = [...m.teamA, ...m.teamB].find((p) => p.id === m.submittedBy);
   return (
-    <div className="match">
-      <div className="meta"><span>{fmtDate(m.date)} · {m.type === "doubles" ? "Doubles" : "Singles"} · {F.label}</span>{status}</div>
-      {line("A")}{line("B")}
-      <div className="small meta-line" style={{ marginTop: 6 }}><MapPin size={14} weight="fill" /> {m.court?.name ?? "—"} · entered by {submitter?.first}</div>
-      {actions}
-    </div>
+    <article className="scard" aria-label={`${W.map(shortName).join(" & ")} beat ${L.map(shortName).join(" & ")}`}>
+      {(showDate || status) && (
+        <div className="sc-top">
+          <span>{showDate ? new Date(m.date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : ""}</span>
+          {status}
+        </div>
+      )}
+      <div className="scard-row">
+        <TeamSide team={W} won />
+        <div className="sc-score">
+          {sets.map(([w, l], i) => (
+            <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>
+          ))}
+        </div>
+        <TeamSide team={L} won={false} />
+      </div>
+      {m.court && <div className="sc-court">{m.court.name}</div>}
+      {actions && <div className="sc-actions">{actions}</div>}
+    </article>
   );
 }
 

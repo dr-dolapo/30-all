@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, MatchCard, useSession, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, useSession, useUi } from "../ui";
 import { CalendarDots, CaretRight, Plus, Trophy, X } from "../icons";
 
 /* ---------- helpers ---------- */
@@ -19,8 +19,6 @@ export function usePendingCount() {
 
 const parse = (iso: string) => new Date(iso + "T12:00:00Z");
 const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? "ST" : n % 10 === 2 && n !== 12 ? "ND" : n % 10 === 3 && n !== 13 ? "RD" : "TH");
-const shortName = (p: PublicUser) => `${p.first} ${p.last.charAt(0)}.`;
-const byName = (a: PublicUser, b: PublicUser) => `${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`);
 
 function dayLabel(iso: string, today: string) {
   const top = iso === today ? "Today" : iso === addDaysISO(today, -1) ? "Yesterday" : parse(iso).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
@@ -140,38 +138,6 @@ function LoveLove() {
 
 /* ---------- score card ---------- */
 
-function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
-  const ps = [...team].sort(byName); // always alphabetical, not by who entered the score
-  return (
-    <div className={"sc-team" + (won ? " won" : " lost")}>
-      <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
-        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
-      </div>
-      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
-    </div>
-  );
-}
-
-function ScoreCard({ m }: { m: Match }) {
-  // Winner always on the left, so scores are shown from the winner's side.
-  const W = m.winner === "A" ? m.teamA : m.teamB, L = m.winner === "A" ? m.teamB : m.teamA;
-  const sets = m.sets.map(([a, b]) => (m.winner === "A" ? [a, b] : [b, a]));
-  return (
-    <article className="scard" aria-label={`${W.map(shortName).join(" & ")} beat ${L.map(shortName).join(" & ")}`}>
-      <div className="scard-row">
-        <TeamSide team={W} won />
-        <div className="sc-score">
-          {sets.map(([w, l], i) => (
-            <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>
-          ))}
-        </div>
-        <TeamSide team={L} won={false} />
-      </div>
-      {m.court && <div className="sc-court">{m.court.name}</div>}
-    </article>
-  );
-}
-
 /* ---------- pending scores ---------- */
 
 function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClose: () => void; onChanged: () => void }) {
@@ -200,8 +166,8 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
     <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label="Pending scores">
         <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button></div>
-        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
-        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
+        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
+        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
         {pending.length === 0 && <div className="empty">Nothing pending. Every score has been answered.</div>}
         <p className="small" style={{ textAlign: "center", marginTop: 6 }}>Scores not accepted within 7 days are rejected automatically.</p>
       </div>

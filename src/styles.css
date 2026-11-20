@@ -372,3 +372,8 @@ main.narrow > form{padding-top:6px}
 .fab{background:#FF751F;box-shadow:0 6px 16px rgba(255,117,31,.35)}
 .fab:hover{background:var(--o-dark)}
 .ddot{background:#FF751F}
+/* design 11: one score card everywhere */
+.sc-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);margin:-8px 4px 12px;min-height:20px}
+.sc-actions{margin-top:12px;padding:0 4px}
+.sc-actions .acts{margin-top:0}
+.sheet .scard{background:#F4F4F4}

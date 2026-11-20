@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
-import { Avatar, BottomNav, ErrorText, fullName, Loading, MatchCard, TopBar, useSession } from "../ui";
+import { Avatar, BottomNav, ErrorText, fullName, Loading, ScoreCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
 import { Star } from "../icons";
 
@@ -126,7 +126,7 @@ export function Player() {
             <div><Avatar u={p} size={44} /><div style={{ fontSize: 28, fontWeight: 800 }}>{p.h2h.played - p.h2h.myWins}</div><div className="small">{p.first}</div></div>
           </div>
         </div>
-        {p.h2h.matches.map((m) => <MatchCard key={m.id} m={m} />)}
+        {p.h2h.matches.map((m) => <ScoreCard key={m.id} m={m} showDate />)}
        </section>
        </div>
       </main>
