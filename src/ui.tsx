@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { avatarSVG } from "../shared/avatars";
 import { FORMATS } from "../shared/rules";
 import { api, type Match, type Me, type PublicUser } from "./api";
+import { Bell, CaretLeft, CaretRight, TennisBall, User, UsersThree } from "./icons";
 
 /* ---------- session context ---------- */
 
@@ -58,7 +59,7 @@ export function TopBar({ title, back, right, dark }: { title: ReactNode; back?: 
   const nav = useNavigate();
   return (
     <div className={"top" + (dark ? " admintop" : "")}>
-      {back ? <button className="back" aria-label="Back" onClick={() => (typeof back === "string" ? nav(back) : back())}>‹</button>
+      {back ? <button className="back" aria-label="Back" onClick={() => (typeof back === "string" ? nav(back) : back())}><CaretLeft size={22} weight="bold" /></button>
         : <img src={dark ? "/logo-white.png" : "/logo-black.png"} alt="30-All" />}
       <h1>{title}</h1>
       {right}
@@ -67,17 +68,17 @@ export function TopBar({ title, back, right, dark }: { title: ReactNode; back?: 
 }
 
 const ICON = {
-  matches: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M4.5 8c3 1.5 3 6.5 0 8M19.5 8c-3 1.5-3 6.5 0 8" /></svg>,
-  players: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.5-4 3-6 6.5-6s6 2 6.5 6" /><circle cx="17" cy="9" r="2.5" /><path d="M16 14c3 0 5 1.8 5.5 5" /></svg>,
-  inbox: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9Z" /><path d="M10 19a2 2 0 0 0 4 0" /></svg>,
-  me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4" /><path d="M4 21c.8-4.5 4-7 8-7s7.2 2.5 8 7" /></svg>,
+  matches: (on: boolean) => <TennisBall size={22} weight={on ? "fill" : "regular"} />,
+  players: (on: boolean) => <UsersThree size={22} weight={on ? "fill" : "regular"} />,
+  inbox: (on: boolean) => <Bell size={22} weight={on ? "fill" : "regular"} />,
+  me: (on: boolean) => <User size={22} weight={on ? "fill" : "regular"} />,
 };
 
 export function BottomNav({ pending = 0 }: { pending?: number }) {
   const { me } = useSession();
-  const item = (to: string, icon: ReactNode, label: string, badge?: number) => (
+  const item = (to: string, icon: (on: boolean) => ReactNode, label: string, badge?: number) => (
     <NavLink to={to} className={({ isActive }) => (isActive ? "act" : "")}>
-      {icon}{badge ? <span className="badge">{badge}</span> : null}{label}
+      {({ isActive }) => <>{icon(isActive)}{badge ? <span className="badge">{badge}</span> : null}{label}</>}
     </NavLink>
   );
   return (
@@ -106,21 +107,27 @@ export const ago = (t: number) => {
   return `${Math.round(h / 24)}d ago`;
 };
 
-/* ---------- match card ---------- */
+/* ---------- score card (the one match card used everywhere) ---------- */
 
-export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
-  const F = FORMATS[m.format];
-  const line = (side: "A" | "B") => {
-    const team = side === "A" ? m.teamA : m.teamB, win = m.winner === side && m.status === "confirmed";
-    return (
-      <div className={"mline" + (m.winner === side ? " win" : "")}>
-        <span className="tick">{win ? "✓" : ""}</span>
-        <span style={{ display: "flex" }}>{team.map((p) => <Avatar key={p.id} u={p} size={26} />)}</span>
-        <span className="who">{team.map((p, i) => <span key={p.id}>{i > 0 && " & "}<Link to={`/players/${p.id}`} style={{ textDecoration: "none" }}>{fullName(p)}</Link></span>)}</span>
-        <span className="sc">{m.sets.map((s, i) => <span key={i}>{side === "A" ? s[0] : s[1]}</span>)}</span>
+const shortName = (p: PublicUser) => `${p.first} ${p.last.charAt(0)}.`;
+const byName = (a: PublicUser, b: PublicUser) => `${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`);
+
+function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
+  const ps = [...team].sort(byName); // always alphabetical, not by who entered the score
+  return (
+    <div className={"sc-team" + (won ? " won" : " lost")}>
+      <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
+        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
       </div>
-    );
-  };
+      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
+    </div>
+  );
+}
+
+/** Winner on the left (bold), loser on the right (grey), each set's winning score bold, court at the bottom. */
+export function ScoreCard({ m, showDate, actions }: { m: Match; showDate?: boolean; actions?: ReactNode }) {
+  const W = m.winner === "A" ? m.teamA : m.teamB, L = m.winner === "A" ? m.teamB : m.teamA;
+  const sets = m.sets.map(([a, b]) => (m.winner === "A" ? [a, b] : [b, a]));
   let status: ReactNode = null;
   if (m.status === "pending") {
     const left = Math.max(0, Math.ceil(((m.expiresAt ?? m.submittedAt + 7 * 864e5) - Date.now()) / 864e5));
@@ -128,14 +135,26 @@ export function MatchCard({ m, actions }: { m: Match; actions?: ReactNode }) {
   }
   if (m.status === "rejected") status = <span className="pill bad">Rejected</span>;
   if (m.status === "expired") status = <span className="pill bad">Expired</span>;
-  const submitter = [...m.teamA, ...m.teamB].find((p) => p.id === m.submittedBy);
   return (
-    <div className="match">
-      <div className="meta"><span>{fmtDate(m.date)} · {m.type === "doubles" ? "Doubles" : "Singles"} · {F.label}</span>{status}</div>
-      {line("A")}{line("B")}
-      <div className="small" style={{ marginTop: 6 }}>📍 {m.court?.name ?? "—"} · entered by {submitter?.first}</div>
-      {actions}
-    </div>
+    <article className="scard" aria-label={`${W.map(shortName).join(" & ")} beat ${L.map(shortName).join(" & ")}`}>
+      {(showDate || status) && (
+        <div className="sc-top">
+          <span>{showDate ? new Date(m.date + "T12:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : ""}</span>
+          {status}
+        </div>
+      )}
+      <div className="scard-row">
+        <TeamSide team={W} won />
+        <div className="sc-score">
+          {sets.map(([w, l], i) => (
+            <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>
+          ))}
+        </div>
+        <TeamSide team={L} won={false} />
+      </div>
+      {m.court && <div className="sc-court">{m.court.name}</div>}
+      {actions && <div className="sc-actions">{actions}</div>}
+    </article>
   );
 }
 
@@ -155,9 +174,9 @@ export function Calendar({ month, onMonth, days, selected, onSelect, min, max }:
   return (
     <div className="cal">
       <div className="calhead">
-        <button onClick={() => move(-1)} aria-label="Previous month">‹</button>
+        <button onClick={() => move(-1)} aria-label="Previous month"><CaretLeft size={18} weight="bold" /></button>
         <b>{first.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</b>
-        <button onClick={() => move(1)} aria-label="Next month">›</button>
+        <button onClick={() => move(1)} aria-label="Next month"><CaretRight size={18} weight="bold" /></button>
       </div>
       <div className="calgrid">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="dow">{d}</div>)}
@@ -177,3 +196,33 @@ export function Calendar({ month, onMonth, days, selected, onSelect, min, max }:
 
 export function Loading() { return <div className="loading">Loading…</div>; }
 export function ErrorText({ msg }: { msg?: string | null }) { return msg ? <div className="err" role="alert">{msg}</div> : null; }
+
+/** Sign-up progress: "Step 3 of 7" over a segmented bar. */
+export function StepBar({ step, total = 7 }: { step: number; total?: number }) {
+  return (
+    <div className="stepbar">
+      <div className="steplabel">Step {step} of {total}</div>
+      <div className="steps" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={step} aria-label={`Step ${step} of ${total}`}>
+        {Array.from({ length: total }, (_, i) => <i key={i} className={i < step ? "on" : ""} />)}
+      </div>
+    </div>
+  );
+}
+
+/** A player's record: one big win–loss figure, win rate, and recent form. */
+export function RecordBlock({ record }: { record: { played: number; won: number; lost: number; form: string[] } }) {
+  const pct = record.played ? Math.round((record.won / record.played) * 100) : null;
+  return (
+    <div className="record">
+      <div className="rec-big" aria-label={`${record.won} won, ${record.lost} lost`}>
+        <span>{record.won}</span><span className="rec-dash">–</span><span>{record.lost}</span>
+      </div>
+      <div className="rec-sub">{record.played ? `${pct}% won · ${record.played} played` : "No matches yet"}</div>
+      {record.form.length > 0 && (
+        <div className="rec-form" aria-label="Recent form, newest first">
+          {record.form.map((x, i) => <i key={i} className={x === "W" ? "w" : "l"}>{x}</i>)}
+        </div>
+      )}
+    </div>
+  );
+}

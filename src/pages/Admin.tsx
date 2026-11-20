@@ -2,7 +2,8 @@ import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
-import { Avatar, ErrorText, fullName, Loading, TopBar, useSession, useUi } from "../ui";
+import { Eye, EyeSlash } from "../icons";
+import { Avatar, ErrorText, RecordBlock, fullName, Loading, TopBar, useSession, useUi } from "../ui";
 
 type Tab = "courts" | "users" | "photos";
 
@@ -17,8 +18,8 @@ export function Admin() {
     <>
       <TopBar title="Admin" dark right={<button className="btn sm" onClick={() => nav("/me")}>Exit</button>} />
       <main className="wide">
-        <div className="tabs">
-          {(["courts", "users", "photos"] as Tab[]).map((t) => <button key={t} className={"chip" + (tab === t ? " on" : "")} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
+        <div className="seg admin-seg" role="tablist" aria-label="Admin sections">
+          {(["courts", "users", "photos"] as Tab[]).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
         </div>
         {tab === "courts" && <Courts />}
         {tab === "users" && <Users />}
@@ -163,13 +164,13 @@ function Users() {
           <div className="pl" style={{ paddingTop: 0 }}>
             <Avatar u={u} size={40} />
             <div className="grow"><div className="nm">{fullName(u)} <StatusPills u={u} /></div><div className="id">{u.pid} · {u.email}</div></div>
+            <button className="btn sm ghost" style={{ flex: "none" }} onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button>
           </div>
           <dl className="kv" style={{ fontSize: 13 }}>
             <dt>WhatsApp</dt><dd>{u.whatsapp || "—"}</dd>
             <dt>Gender</dt><dd>{u.gender || "—"}</dd>
             <dt>Home court</dt><dd><HomeCourtSelect user={u} courts={courts} onChanged={load} /></dd>
           </dl>
-          <div className="acts"><button className="btn sm ghost" onClick={() => nav(`/admin/users/${u.id}`)}>Edit</button></div>
         </div>
       ))}
       </div>
@@ -186,12 +187,7 @@ interface AdminUserDetail {
   courts: CourtRef[]; racquets: Racquet[]; record: { played: number; won: number; lost: number; form: string[] };
 }
 
-const EyeIcon = ({ open }: { open: boolean }) => (
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
-    {!open && <path d="M3 3l18 18" />}
-  </svg>
-);
+const EyeIcon = ({ open }: { open: boolean }) => (open ? <EyeSlash size={18} weight="bold" aria-hidden="true" /> : <Eye size={18} weight="bold" aria-hidden="true" />);
 
 /** Shows **** until the admin clicks the eye. */
 function Masked({ value, shown, onToggle, label }: { value: React.ReactNode; shown: boolean; onToggle: () => void; label: string }) {
@@ -245,7 +241,7 @@ export function AdminUserPage() {
           <div className="idtag">{u.pid}</div>
           <div style={{ marginTop: 8 }}><StatusPills u={u} /></div>
         </div>
-        <div className="stats"><div><b>{u.record.played}</b><span>Played</span></div><div><b style={{ color: "var(--ok)" }}>{u.record.won}</b><span>Won</span></div><div><b>{u.record.lost}</b><span>Lost</span></div></div>
+        <RecordBlock record={u.record} />
 
         <div className="profgrid">
           <div className="span-all">

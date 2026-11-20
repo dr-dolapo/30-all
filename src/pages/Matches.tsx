@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, MatchCard, useSession, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, useSession, useUi } from "../ui";
+import { CalendarDots, CaretRight, Plus, Trophy, X } from "../icons";
 
 /* ---------- helpers ---------- */
 
@@ -18,8 +19,6 @@ export function usePendingCount() {
 
 const parse = (iso: string) => new Date(iso + "T12:00:00Z");
 const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? "ST" : n % 10 === 2 && n !== 12 ? "ND" : n % 10 === 3 && n !== 13 ? "RD" : "TH");
-const shortName = (p: PublicUser) => `${p.first} ${p.last.charAt(0)}.`;
-const byName = (a: PublicUser, b: PublicUser) => `${a.first} ${a.last}`.localeCompare(`${b.first} ${b.last}`);
 
 function dayLabel(iso: string, today: string) {
   const top = iso === today ? "Today" : iso === addDaysISO(today, -1) ? "Yesterday" : parse(iso).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
@@ -48,14 +47,7 @@ function MeAllToggle({ value, onChange }: { value: "me" | "all"; onChange: (v: "
 
 /* ---------- date strip ---------- */
 
-const CalIcon = () => (
-  <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-    <rect x="3" y="6" width="26" height="23" rx="4" fill="none" stroke="#fff" strokeWidth="2.6" />
-    <path d="M3 12.5h26" stroke="#fff" strokeWidth="2.6" />
-    <path d="M9.5 3.5v5M22.5 3.5v5" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" />
-    {[0, 1, 2].map((c) => [0, 1].map((r) => <rect key={`${c}${r}`} x={8 + c * 6} y={16 + r * 6} width="4" height="3.4" rx="0.8" fill="#fff" />))}
-  </svg>
-);
+const CalIcon = () => <CalendarDots size={32} weight="bold" color="#fff" />;
 
 function DateStrip({ dates, selected, onSelect, marked, today, onOpenCalendar }: {
   dates: string[]; selected: string; onSelect: (d: string) => void; marked: Set<string>; today: string; onOpenCalendar: () => void;
@@ -146,38 +138,6 @@ function LoveLove() {
 
 /* ---------- score card ---------- */
 
-function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
-  const ps = [...team].sort(byName); // always alphabetical, not by who entered the score
-  return (
-    <div className={"sc-team" + (won ? " won" : " lost")}>
-      <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
-        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
-      </div>
-      <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`}>{shortName(p)}</Link>)}</div>
-    </div>
-  );
-}
-
-function ScoreCard({ m }: { m: Match }) {
-  // Winner always on the left, so scores are shown from the winner's side.
-  const W = m.winner === "A" ? m.teamA : m.teamB, L = m.winner === "A" ? m.teamB : m.teamA;
-  const sets = m.sets.map(([a, b]) => (m.winner === "A" ? [a, b] : [b, a]));
-  return (
-    <article className="scard" aria-label={`${W.map(shortName).join(" & ")} beat ${L.map(shortName).join(" & ")}`}>
-      <div className="scard-row">
-        <TeamSide team={W} won />
-        <div className="sc-score">
-          {sets.map(([w, l], i) => (
-            <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>
-          ))}
-        </div>
-        <TeamSide team={L} won={false} />
-      </div>
-      {m.court && <div className="sc-court">{m.court.name}</div>}
-    </article>
-  );
-}
-
 /* ---------- pending scores ---------- */
 
 function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClose: () => void; onChanged: () => void }) {
@@ -205,9 +165,9 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
   return (
     <div className="sheet-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label="Pending scores">
-        <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={onClose}>×</button></div>
-        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
-        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <MatchCard key={m.id} m={m} actions={actions(m)} />)}</>}
+        <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button></div>
+        {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
+        {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map((m) => <ScoreCard key={m.id} m={m} showDate actions={actions(m)} />)}</>}
         {pending.length === 0 && <div className="empty">Nothing pending. Every score has been answered.</div>}
         <p className="small" style={{ textAlign: "center", marginTop: 6 }}>Scores not accepted within 7 days are rejected automatically.</p>
       </div>
@@ -264,7 +224,7 @@ export function Matches() {
                 {toAnswer > 0 && waiting > 0 && " · "}
                 {waiting > 0 && `${waiting} waiting on opponent${waiting === 1 ? "" : "s"}`}
               </span>
-              <span aria-hidden="true">›</span>
+              <CaretRight size={18} weight="bold" aria-hidden="true" />
             </button>
           )}
           {list === null ? <Loading /> : list.length === 0 ? <LoveLove /> : (
@@ -275,7 +235,7 @@ export function Matches() {
           )}
         </main>
         <button className="fab" aria-label="Add a score" onClick={() => setAdding(true)}>
-          <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 4v16M4 12h16" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" /></svg>
+          <Plus size={30} weight="bold" color="#fff" />
         </button>
       </div>
       <BottomNav pending={toAnswer} />
@@ -360,7 +320,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
     </button>
   ) : (
     <button className="se-row" onClick={() => slot && setPicker(slot)}>
-      <span className="se-plus" aria-hidden="true">+</span>
+      <span className="se-plus" aria-hidden="true"><Plus size={20} weight="bold" /></span>
       <span className="se-who"><b>Add Player</b><small>{label}</small></span>
     </button>
   );
@@ -372,7 +332,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
         <div className="sheet-head">
           <h3>{phase === 1 ? "Add a score" : "Players & score"}</h3>
           <span className="small">Step {phase} of 2</span>
-          <button className="xbtn" aria-label="Close" onClick={onClose}>×</button>
+          <button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button>
         </div>
 
         {phase === 1 ? (
@@ -426,7 +386,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
               {F.sets === 3 && " Set 3 opens at one set all."}
             </p>
             {score.error ? <div className="err" style={{ textAlign: "center" }}>{score.error}</div> : score.winner && playersReady && (
-              <div style={{ textAlign: "center", fontWeight: 700, color: "var(--ok)", marginTop: 4 }}>🏆 {score.winner === "A" ? teamA : teamB} {(score.winner === "A" ? teamA : teamB).includes("&") ? "win" : "wins"}</div>
+              <div style={{ textAlign: "center", fontWeight: 700, color: "var(--ok)", marginTop: 4 }}><Trophy size={18} weight="fill" style={{ verticalAlign: "-3px" }} /> {score.winner === "A" ? teamA : teamB} {(score.winner === "A" ? teamA : teamB).includes("&") ? "win" : "wins"}</div>
             )}
             <ErrorText msg={err} />
             <div className="row" style={{ marginTop: 16 }}>
@@ -459,7 +419,7 @@ function PlayerPicker({ exclude, onPick, onClose }: { exclude: string[]; onPick:
   return (
     <div className="sheet-bg" style={{ zIndex: 25 }} onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label="Add player">
-        <div className="sheet-head"><h3>Add player</h3><button className="xbtn" aria-label="Close" onClick={onClose}>×</button></div>
+        <div className="sheet-head"><h3>Add player</h3><button className="xbtn" aria-label="Close" onClick={onClose}><X size={20} weight="bold" /></button></div>
         <input className="inp" autoFocus placeholder="Search first name, last name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
         <ErrorText msg={err} />
         <div style={{ marginTop: 6 }}>

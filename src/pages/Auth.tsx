@@ -1,7 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
-import { ErrorText, TopBar, useSession, useUi } from "../ui";
+import { Avatar, ErrorText, StepBar, TopBar, useSession, useUi } from "../ui";
+import { CheckCircle } from "../icons";
+
+/** A still of the product on the welcome page: one confirmed score card and the confirmation that made it official. */
+function WelcomeShowcase() {
+  const sets: Array<[number, number]> = [[6, 4], [3, 6], [7, 5]];
+  return (
+    <div className="wshow" aria-hidden="true">
+      <div className="scard wcard">
+        <div className="scard-row">
+          <div className="sc-team won"><div className="sc-avs"><Avatar u={{ avatar: 2, photoUrl: null }} size={60} /></div><div className="sc-names"><span>Tolu B.</span></div></div>
+          <div className="sc-score">{sets.map(([w, l], i) => <div key={i} className="sc-set"><span className={w > l ? "b" : ""}>{w}</span><span className="dash">-</span><span className={l > w ? "b" : ""}>{l}</span></div>)}</div>
+          <div className="sc-team lost"><div className="sc-avs"><Avatar u={{ avatar: 10, photoUrl: null }} size={60} /></div><div className="sc-names"><span>Chidi O.</span></div></div>
+        </div>
+        <div className="sc-court">Ikoyi Club 1938</div>
+      </div>
+      <div className="wsat"><CheckCircle size={18} weight="fill" /> Accepted by Chidi</div>
+    </div>
+  );
+}
 
 export function Welcome() {
   const nav = useNavigate();
@@ -12,6 +31,7 @@ export function Welcome() {
         <h2>Your tennis.<br />Your scores.<br />Your crew.</h2>
         <p>Log your matches, settle the scoreline and see who's really on top.</p>
       </div>
+      <WelcomeShowcase />
       <div>
         <button className="btn" onClick={() => nav("/signup")}>Create account</button>
         <button className="btn ghost" onClick={() => nav("/login")}>Log in</button>
@@ -38,7 +58,9 @@ export function Login() {
     <>
       <TopBar title="Log in" back="/" />
       <main className="narrow">
-        <form className="card" onSubmit={submit}>
+        <form onSubmit={submit}>
+          <div className="stitle">Welcome back</div>
+          <p className="ssub">Log in to enter scores and see your record.</p>
           <label className="f">Email</label>
           <input className="inp" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <label className="f">Password</label>
@@ -47,7 +69,7 @@ export function Login() {
           <div style={{ marginTop: 16 }}><button className="btn" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button></div>
           <p style={{ textAlign: "center", marginTop: 14 }}><Link className="link" to="/forgot">Forgot password?</Link></p>
         </form>
-        <p className="small" style={{ textAlign: "center" }}>New here? <Link className="link" to="/signup">Create an account</Link></p>
+        <p className="small" style={{ textAlign: "center", marginTop: 18 }}>New here? <Link className="link" to="/signup">Create an account</Link></p>
       </main>
     </>
   );
@@ -72,7 +94,8 @@ export function Forgot() {
       <TopBar title="Reset password" back="/login" />
       <main className="narrow">
         {step === 1 ? (
-          <form className="card" onSubmit={send}>
+          <form onSubmit={send}>
+            <div className="stitle">Reset your password</div>
             <p className="ssub">Enter your email and we'll send you a 6-digit code.</p>
             <label className="f">Email</label>
             <input className="inp" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -80,7 +103,8 @@ export function Forgot() {
             <div style={{ marginTop: 14 }}><button className="btn">Send code</button></div>
           </form>
         ) : (
-          <form className="card" onSubmit={reset}>
+          <form onSubmit={reset}>
+            <div className="stitle">Check your email</div>
             <p className="ssub">If <b>{email}</b> has an account, we've sent it a code. It expires in 10 minutes.</p>
             <label className="f">Code</label>
             <input className="inp" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required />
@@ -109,7 +133,7 @@ export function Signup() {
     <>
       <TopBar title="Create account" back="/" />
       <main className="narrow">
-        <div className="steps">{Array.from({ length: 7 }, (_, i) => <i key={i} className={i === 0 ? "on" : ""} />)}</div>
+        <StepBar step={1} />
         <form onSubmit={submit}>
           <div className="stitle">Let's get you on court</div>
           <p className="ssub">Your name builds your player ID.</p>
@@ -151,7 +175,7 @@ export function Verify() {
     e.preventDefault(); setErr("");
     const code = digits.join("");
     if (code.length < 6) return setErr("Enter all 6 digits");
-    try { await api.post("/auth/verify", { email, code }); toast("✅ Email verified"); await refresh(); nav("/onboarding"); }
+    try { await api.post("/auth/verify", { email, code }); toast("Email verified"); await refresh(); nav("/onboarding"); }
     catch (e: any) { setErr(e.message); }
   };
   const resend = async () => {
@@ -162,7 +186,7 @@ export function Verify() {
     <>
       <TopBar title="Create account" back="/signup" />
       <main className="narrow">
-        <div className="steps">{Array.from({ length: 7 }, (_, i) => <i key={i} className={i <= 1 ? "on" : ""} />)}</div>
+        <StepBar step={2} />
         <form onSubmit={submit}>
           <div className="stitle">Check your email</div>
           <p className="ssub">Enter the 6-digit code we sent to <b>{email}</b>. It expires in 10 minutes.</p>
