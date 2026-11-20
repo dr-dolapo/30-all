@@ -393,3 +393,16 @@ main.narrow > form{padding-top:6px}
 .drow>b{font-weight:500}
 .h2-icon{display:flex;align-items:center;gap:6px}
 .h2-icon svg{color:var(--mute)}
+/* design 15: inbox icons, day groups, calmer text */
+.notif{align-items:flex-start;gap:12px}
+.notif .t{font-weight:400;font-size:14px;line-height:1.4;color:var(--ink2)}
+.notif.unread .t{font-weight:600;color:var(--ink)}
+.nbody{flex:1;min-width:0}
+.nicon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
+.nicon.ok{background:var(--ok-soft);color:var(--ok)}
+.nicon.bad{background:var(--bad-soft);color:var(--bad)}
+.nicon.warn{background:var(--warn-soft);color:var(--warn)}
+.nicon.o{background:var(--o-soft);color:var(--o-dark)}
+.nicon.info{background:#EEF1F4;color:#4A5563}
+.notif .dotu{margin-top:13px}
+.notif.unread .t{font-weight:500}

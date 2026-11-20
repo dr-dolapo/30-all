@@ -4,6 +4,28 @@ import { api, type Notification } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, heightCm, profileBody, RacquetEditor, StyleFields, type Draft } from "../forms";
 import { ago, BottomNav, ErrorText, Loading, TopBar, useSession, useUi } from "../ui";
 import { usePendingCount } from "./Matches";
+import { Buildings, CheckCircle, Clock, HandWaving, ImageIcon, TennisBall, XCircle } from "../icons";
+
+/** Icon and colour for a notification, from what it says. */
+function kindOf(text: string) {
+  const t = text.toLowerCase();
+  if (t.includes("automatically rejected") || t.includes("expired")) return { icon: <Clock size={18} weight="fill" />, tone: "warn" };
+  if (t.includes("rejected") || t.includes("wasn't approved") || t.includes("deleted")) return { icon: <XCircle size={18} weight="fill" />, tone: "bad" };
+  if (t.includes("photo")) return { icon: <ImageIcon size={18} weight="fill" />, tone: "bad" };
+  if (t.includes("court")) return { icon: <Buildings size={18} weight="fill" />, tone: "info" };
+  if (t.includes("accepted")) return { icon: <CheckCircle size={18} weight="fill" />, tone: "ok" };
+  if (t.includes("welcome")) return { icon: <HandWaving size={18} weight="fill" />, tone: "info" };
+  return { icon: <TennisBall size={18} weight="fill" />, tone: "o" };
+}
+
+/** Groups notifications under Today, Yesterday and Earlier. */
+function groupByDay<T extends { at: number }>(list: T[]): Array<[string, T[]]> {
+  const day = (t: number) => new Date(t + 3600_000).toISOString().slice(0, 10); // Lagos date
+  const today = day(Date.now()), yest = day(Date.now() - 864e5);
+  const groups: Record<string, T[]> = {};
+  for (const n of list) { const d = day(n.at); const k = d === today ? "Today" : d === yest ? "Yesterday" : "Earlier"; (groups[k] ??= []).push(n); }
+  return (["Today", "Yesterday", "Earlier"] as const).filter((k) => groups[k]).map((k) => [k, groups[k]]);
+}
 import { ProfileSections } from "./Players";
 
 export function Inbox() {
@@ -17,14 +39,23 @@ export function Inbox() {
       <TopBar title="Inbox" />
       <main>
         {list === null ? <Loading /> : list.length === 0 ? <div className="empty">Nothing here yet.</div> : (
-          <div className="card" style={{ padding: "0 14px" }}>
-            {list.map((n) => (
-              <div key={n.id} className={"notif" + (n.readAt ? "" : " unread")} style={n.matchId ? { cursor: "pointer" } : undefined} onClick={() => n.matchId && nav("/matches")}>
-                <span className={n.readAt ? "dotr" : "dotu"} />
-                <div><div className="t">{n.text}</div><div className="tm">{ago(n.at)}</div></div>
+          <>{groupByDay(list).map(([label, items]) => (
+            <section key={label}>
+              <div className="h2">{label}</div>
+              <div className="card" style={{ padding: "0 14px" }}>
+                {items.map((n) => {
+                  const k = kindOf(n.text);
+                  return (
+                    <div key={n.id} className={"notif" + (n.readAt ? "" : " unread")} style={n.matchId ? { cursor: "pointer" } : undefined} onClick={() => n.matchId && nav("/matches")}>
+                      <span className={"nicon " + k.tone} aria-hidden="true">{k.icon}</span>
+                      <div className="nbody"><div className="t">{n.text}</div><div className="tm">{ago(n.at)}</div></div>
+                      {!n.readAt && <span className="dotu" aria-label="Unread" />}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </section>
+          ))}</>
         )}
         <p className="small" style={{ textAlign: "center" }}>Important updates are also sent to your email.</p>
       </main>
