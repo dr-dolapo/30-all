@@ -509,3 +509,11 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .star[data-pop] svg,.favbtn[data-pop] svg{animation:starpop 260ms var(--ease-out)}
 @keyframes starpop{0%{transform:scale(.8)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion: reduce){.star[data-pop] svg,.favbtn[data-pop] svg{animation:none}}
+/* motion 11: hold to delete — slow while deciding, fast on release */
+.btn.hold{position:relative;overflow:hidden;background:#F6DADA;color:var(--bad)}
+.hold-fill{position:absolute;inset:0;background:var(--bad);clip-path:inset(0 100% 0 0);transition:clip-path 200ms var(--ease-out)}
+.btn.hold[data-holding] .hold-fill{clip-path:inset(0 0 0 0);transition:clip-path var(--hold,1500ms) linear}
+.hold-fill{display:grid;place-items:center;color:#fff}
+.hold-label{position:relative}
+.hold-fill{z-index:1}
+@media (hover:hover) and (pointer:fine){.btn.hold:hover{background:#F2CFCF}}

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { STATES } from "../../shared/data";
 import { api, type CourtRef, type Racquet } from "../api";
@@ -308,8 +308,10 @@ export function AdminUserPage() {
                   {u.status === "suspended" ? "Unsuspend" : "Suspend"}
                 </button>
               )}
-              <button className="btn bad" onClick={() => confirm({ title: `Delete ${fullName(u)}?`, body: "Their login and personal details are removed. Their name stays on past confirmed matches so opponents' records stay right. Their pending scores are closed. This can't be undone.", ok: "Delete", danger: true,
-                onOk: async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } } })}>Delete player</button>
+              <HoldButton label="Hold to delete player" ms={1500}
+                onConfirm={async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } }}
+                onKeyboard={() => confirm({ title: `Delete ${fullName(u)}?`, body: "Their login and personal details are removed. Their name stays on past confirmed matches so opponents' records stay right. Their pending scores are closed. This can't be undone.", ok: "Delete", danger: true,
+                  onOk: async () => { try { await api.del(`/admin/users/${u.id}`); toast("Player deleted."); back(); } catch (e: any) { toast(e.message); } } })} />
             </div>
           )}
         </div>
@@ -339,5 +341,29 @@ function Photos() {
         ))}
       </div>
     </>
+  );
+}
+
+/**
+ * Hold-to-confirm for destructive actions: a fill sweeps across while held (slow, deliberate),
+ * and snaps back fast if released early. Keyboard activation falls back to a confirm dialog.
+ */
+function HoldButton({ label, ms, onConfirm, onKeyboard }: { label: string; ms: number; onConfirm: () => void; onKeyboard: () => void }) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const start = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setHolding(true);
+    timer.current = window.setTimeout(() => { setHolding(false); onConfirm(); }, ms);
+  };
+  const cancel = () => { window.clearTimeout(timer.current); setHolding(false); };
+  return (
+    <button type="button" className="btn bad hold" data-holding={holding || undefined} style={{ ["--hold" as any]: `${ms}ms` }}
+      onPointerDown={start} onPointerUp={cancel} onPointerCancel={cancel} onLostPointerCapture={cancel}
+      onClick={(e) => { if (e.detail === 0) onKeyboard(); }} onContextMenu={(e) => e.preventDefault()}>
+      <span className="hold-fill" aria-hidden="true"><span>{label}</span></span>
+      <span className="hold-label">{label}</span>
+    </button>
   );
 }
