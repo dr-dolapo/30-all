@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, type Notification } from "../api";
+import { api, type Notification, type PlayerProfile } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, heightCm, profileBody, RacquetEditor, StyleFields, type Draft } from "../forms";
 import { ago, BottomNav, ErrorText, Loading, TopBar, useSession, useUi } from "../ui";
 import { usePendingCount } from "./Matches";
@@ -75,18 +75,20 @@ const heightText = (cm: number | null, unit: string) => {
 
 export function MyProfile() {
   const { me, setMe } = useSession(); const nav = useNavigate(); const pending = usePendingCount();
-  const [record, setRecord] = useState<any>(null);
-  useEffect(() => { if (me) api.get<any>(`/players/${me.id}`).then((p) => setRecord(p.record)).catch(() => {}); }, [me?.id]);
+  const [stats, setStats] = useState<Pick<PlayerProfile, "record" | "activity"> | null>(null);
+  useEffect(() => { if (me) api.get<PlayerProfile>(`/players/${me.id}`).then((p) => setStats({ record: p.record, activity: p.activity })).catch(() => {}); }, [me?.id]);
   if (!me) return <Loading />;
   const logout = async () => { await api.post("/auth/logout").catch(() => {}); setMe(null); nav("/"); };
   return (
     <>
       <TopBar title="My profile" right={me.isAdmin ? <Link to="/admin" className="btn sm dark" style={{ textDecoration: "none" }}>Admin</Link> : undefined} />
       <main>
-        <div style={{ textAlign: "right" }}><Link to="/me/edit" className="btn sm ghost" style={{ textDecoration: "none" }}>Edit profile</Link></div>
-        <ProfileSections u={me} courts={me.courts} racquets={me.racquets} record={record ?? undefined}
+        <ProfileSections u={me} courts={me.courts} racquets={me.racquets} record={stats?.record} activity={stats?.activity} mine
           private={{ gender: me.gender, dob: me.dob, height: heightText(me.heightCm, me.heightUnit), whatsapp: me.whatsapp, email: me.email }} />
-        <button className="btn ghost" style={{ marginTop: 8 }} onClick={logout}>Log out</button>
+        <div className="pro-actions">
+          <Link to="/me/edit" className="btn ghost">Edit profile</Link>
+          <button className="btn ghost" onClick={logout}>Log out</button>
+        </div>
       </main>
       <BottomNav pending={pending} />
     </>

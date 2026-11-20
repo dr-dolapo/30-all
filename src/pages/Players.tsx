@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
+import { flagUrl } from "../../shared/flags";
+import { ActivityCard } from "../activity";
 import { Avatar, BottomNav, ErrorText, fullName, Loading, RecordBlock, ScoreCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
 import { Lock, Star } from "../icons";
@@ -53,8 +55,9 @@ export function Players() {
   );
 }
 
-export function ProfileSections({ u, courts, racquets, record, private: priv }: {
+export function ProfileSections({ u, courts, racquets, record, activity, mine = false, private: priv }: {
   u: PublicUser; courts: CourtRef[]; racquets: Racquet[]; record?: PlayerProfile["record"];
+  activity?: PlayerProfile["activity"]; mine?: boolean;
   private?: { gender: string | null; dob: string | null; height: string; whatsapp: string | null; email: string };
 }) {
   const home = courts.find((c) => c.role === "home");
@@ -64,15 +67,12 @@ export function ProfileSections({ u, courts, racquets, record, private: priv }: 
     <>
       <div className="prohead">
         <Avatar u={u} size={96} />
-        <div className="nm">{fullName(u)}</div>
-        <div className="idtag">{u.pid}</div>
-        <div className="small" style={{ marginTop: 6 }}>{u.nationality}</div>
+        <h1 className="nm">{fullName(u)}</h1>
+        <div className="pid">ID: {u.pid}</div>
+        {flagUrl(u.nationality) && <img className="flag" src={flagUrl(u.nationality)!} alt={u.nationality ?? ""} title={u.nationality ?? ""} width={24} height={16} />}
       </div>
-      {record && (
-        <>
-          <RecordBlock record={record} />
-        </>
-      )}
+      {record && <RecordBlock record={record} />}
+      {activity && <ActivityCard a={activity} mine={mine} />}
       <div className="h2">Tennis</div>
       <div className="card dlist">
         <div className="drow"><span>Home court</span><b>{cLine(home)}</b></div>
@@ -114,7 +114,7 @@ export function Player() {
        <div className="cols">
        <section>
         <div style={{ textAlign: "right" }}><button className={"btn sm favbtn" + (p.isFavourite ? "" : " ghost")} data-pop={popped && p.isFavourite ? "" : undefined} onClick={toggle}><Star size={16} weight={p.isFavourite ? "fill" : "regular"} /> {p.isFavourite ? "Favourite" : "Add to favourites"}</button></div>
-        <ProfileSections u={p} courts={p.courts} racquets={p.racquets} record={p.record} />
+        <ProfileSections u={p} courts={p.courts} racquets={p.racquets} record={p.record} activity={p.activity} />
        </section>
        <section>
         <div className="h2">Head-to-head: you vs {p.first}</div>
