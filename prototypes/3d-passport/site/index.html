@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>30-All · 3D Player Passport</title>
+<style>
+@font-face{font-family:Poppins;font-weight:400;src:url(fonts/poppins-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Poppins;font-weight:600;src:url(fonts/poppins-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:Poppins;font-weight:900;src:url(fonts/poppins-latin-900-normal.woff2) format("woff2")}
+:root{--o:#FF751F;--ink:#111;--mut:#6B6B6B;--line:#E7E2DA;--bg:#F6F3EE;--ease-out:cubic-bezier(.23,1,.32,1)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Poppins,system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+header{padding:28px 20px 8px;max-width:1180px;margin:0 auto}
+h1{font-weight:900;font-size:clamp(28px,4vw,40px);margin:0 0 6px;letter-spacing:-.5px}
+header p{margin:0;color:var(--mut);max-width:720px;line-height:1.5}
+.how{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.how span{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px}
+.how b{color:var(--o)}
+main{max-width:1180px;margin:0 auto;padding:12px 20px 60px}
+.stage{display:grid;grid-template-columns:390px 1fr;gap:28px;align-items:start;margin-top:16px}
+@media (max-width:900px){.stage{grid-template-columns:1fr}.big{display:none}}
+.phone{width:100%;max-width:390px;margin:0 auto;background:#fff;border-radius:36px;border:10px solid #111;overflow:hidden;box-shadow:0 30px 60px -30px rgba(0,0,0,.35)}
+.ph-top{display:flex;align-items:center;gap:14px;padding:22px 18px 10px}
+.ph-av{width:62px;height:62px;border-radius:50%;background:linear-gradient(#FFE3CF,#FFC9A3);flex:none}
+.ph-nm{font-weight:900;font-size:24px;line-height:1.1}
+.ph-id{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:6px;margin-top:4px}
+.ph-id img{width:20px;height:14px;border-radius:2px}
+.ph-sec{padding:6px 18px 18px}
+.ph-sec h2{font-family:Poppins;font-weight:900;font-size:18px;margin:10px 0 8px}
+.ph-pass{height:480px;margin:0 -18px;background:radial-gradient(120% 80% at 50% 40%,#fff 0,#F4EFE8 100%);position:relative}
+.ph-cap{font-size:12px;color:var(--mut);text-align:center;margin-top:8px}
+.ph-ghost{height:110px;border-radius:16px;background:#F4F2EF;margin-top:8px}
+.big{position:sticky;top:16px}
+.big .frame{height:620px;border-radius:24px;background:radial-gradient(120% 90% at 50% 35%,#fff 0,#EDE6DC 100%);border:1px solid var(--line);position:relative;overflow:hidden}
+.pp{position:relative}
+.pp-canvas{width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab;outline:none}
+.pp-canvas:active{cursor:grabbing}
+.pp-canvas:focus-visible{box-shadow:inset 0 0 0 3px var(--o)}
+.pp-hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:#111;color:#fff;font-size:12px;font-weight:600;border-radius:999px;padding:6px 12px 6px 30px;pointer-events:none;transition:opacity .25s var(--ease-out),transform .25s var(--ease-out)}
+.pp-hint::before{content:"";position:absolute;left:12px;top:50%;width:10px;height:10px;margin-top:-5px;border-left:2px solid var(--o);border-bottom:2px solid var(--o);transform:rotate(45deg);animation:nudge 1.4s var(--ease-out) infinite}
+@keyframes nudge{0%,100%{translate:0}50%{translate:-4px}}
+.pp-hint.gone{opacity:0;transform:translateX(-50%) translateY(6px)}
+@media (prefers-reduced-motion:reduce){.pp-hint::before{animation:none}}
+.panel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;margin-top:18px}
+.panel h3{margin:0 0 10px;font-weight:900;font-size:17px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:8px 0}
+.row label{font-size:12px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em;min-width:92px}
+.seg{display:inline-flex;background:#F1EEE9;border-radius:999px;padding:3px;flex-wrap:wrap}
+.seg button,.go button,.dec button{font:inherit;font-size:13px;border:0;background:none;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--ink);transition:transform .12s var(--ease-out),background .15s}
+.seg button.on{background:var(--o);font-weight:600}
+.seg button:active,.go button:active,.dec button:active{transform:scale(.97)}
+select{font:inherit;font-size:13px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:#fff}
+.go{display:flex;flex-wrap:wrap;gap:6px}
+.go button{border:1px solid var(--line);background:#fff}
+#flat{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+#flat figure{margin:0}
+#flat img{width:100%;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.12);display:block}
+#flat figcaption{font-size:12px;color:var(--mut);margin-top:6px}
+.notes{font-size:14px;color:#333;line-height:1.55;margin:0;padding-left:18px}
+.notes li{margin:4px 0}
+.dec{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.dec button{border:1px solid var(--line);padding:9px 16px;background:#fff}
+.dec button.on[data-dec$="Approve"]{background:#1E8E4E;color:#fff;border-color:#1E8E4E}
+.dec button.on[data-dec$="Changes"]{background:#111;color:#fff;border-color:#111}
+textarea{width:100%;min-height:80px;border-radius:14px;border:1px solid var(--line);padding:10px 12px;font:inherit;font-size:14px}
+#copy{margin-top:10px;font:inherit;font-weight:600;background:var(--o);border:0;border-radius:999px;padding:11px 20px;cursor:pointer}
+#out{white-space:pre-wrap;background:#F6F3EE;border-radius:12px;padding:10px 12px;font-size:13px;margin-top:10px}
+@media (hover:hover) and (pointer:fine){.go button:hover,.dec button:hover{background:#F6F3EE}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tennis section → 3D Player Passport</h1>
+  <p>An orange leather passport with black foil, built in Three.js. Every page is painted in code from the player's real profile: photo page, court stamps, a favourite-shot visa that plays in stop motion, and match stamps.</p>
+  <div class="how"><span><b>Drag</b> the cover to open</span><span><b>Drag</b> pages left / right to turn</span><span><b>Tap</b> a page to zoom in, tap again to zoom out</span><span><b>Arrow keys</b> also turn pages</span></div>
+</header>
+<main>
+  <div class="stage">
+    <div>
+      <div class="phone">
+        <div class="ph-top"><div class="ph-av"></div><div><div class="ph-nm">Chidi Okafor</div><div class="ph-id">ID: CO482913 <img src="flags/ng.svg" alt="Nigeria"></div></div></div>
+        <div class="ph-sec">
+          <h2>Tennis</h2>
+          <div class="ph-pass" data-passport></div>
+          <div class="ph-cap">Drag the cover open · swipe to turn pages</div>
+          <h2>Activity</h2>
+          <div class="ph-ghost"></div>
+        </div>
+      </div>
+    </div>
+    <div class="big">
+      <div class="frame" data-passport></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Try other players</h3>
+    <div class="row"><label>Plays</label><div class="seg"><button class="on" data-set="hand:Right">Right</button><button data-set="hand:Left">Left</button></div></div>
+    <div class="row"><label>Backhand</label><div class="seg"><button class="on" data-set="backhand:One-handed">One-handed</button><button data-set="backhand:Two-handed">Two-handed</button></div></div>
+    <div class="row"><label>Fav shot</label><div class="seg"><button data-set="fav:Forehand">Forehand</button><button data-set="fav:Backhand">Backhand</button><button data-set="fav:Serve">Serve</button><button class="on" data-set="fav:Volley">Volley</button><button data-set="fav:Smash">Smash</button><button data-set="fav:Drop-shot">Drop-shot</button></div></div>
+    <div class="row"><label>Racquet</label><select id="racq"><option>Diadem Elevate 98</option><option>Wilson Blade 98</option><option>Babolat Pure Drive</option><option>Head Speed MP</option><option>Yonex Ezone 100</option></select></div>
+    <div class="row"><label>Jump to</label><div class="go"><button data-go="0">Cover</button><button data-go="1">Photo page</button><button data-go="2">Courts + shot</button><button data-go="3">Match stamps</button></div></div>
+  </div>
+
+  <div class="panel">
+    <h3>Every page, flat</h3>
+    <div id="flat"></div>
+  </div>
+
+  <div class="panel">
+    <h3>How it would ship</h3>
+    <ul class="notes">
+      <li>Three.js loads only when a profile's Tennis section scrolls into view, so the rest of the app stays as fast as now. It pauses when off-screen.</li>
+      <li>Vertical scrolling still works over the passport; only sideways drags turn pages.</li>
+      <li>Reduced motion: no sway or peek, the shot shows one still frame, pages snap quickly.</li>
+      <li>No WebGL: the four inside pages show as flat images.</li>
+      <li>Screen readers get the same details as text (home court, hand, backhand, racquet, favourite shot).</li>
+      <li>Racquet brands are written in our type, never their logos.</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3>Your decision</h3>
+    <div class="dec"><button data-dec="passport:Approve">Approve, build it</button><button data-dec="passport:Changes">Request changes</button></div>
+    <textarea id="notes" placeholder="Anything to change? e.g. bigger text on the photo page, different stamp colours…"></textarea>
+    <button id="copy">Copy my decisions</button>
+    <div id="out" hidden></div>
+  </div>
+</main>
+<script type="module" src="passport-review.js"></script>
+</body>
+</html>
