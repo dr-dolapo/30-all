@@ -804,3 +804,47 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .finish-row small{display:block;color:var(--mute);font-size:12.5px}
 .finish-go{color:var(--o-dark,#E25F0C);font-weight:700;font-size:14px;text-decoration:none;padding:4px 2px}
 .done .mate .grow,.finish-row .grow{flex:1;min-width:0}
+/* ---------- landing: stadium ticker ---------- */
+.landing{position:relative;overflow:hidden;flex:1;min-height:100dvh;background:#111;color:#fff;display:flex;flex-direction:column;justify-content:space-between;
+  padding:calc(40px + env(safe-area-inset-top,0px)) 24px calc(28px + env(safe-area-inset-bottom,0px))}
+.land-top img{width:84px;height:84px;display:block}
+.land-top h1{font-family:var(--display);font-weight:900;font-size:36px;line-height:1.06;letter-spacing:-.01em;margin-top:24px;color:#fff}
+.land-ticker{margin:28px -40px;background:var(--o);color:#111;overflow:hidden;white-space:nowrap;padding:13px 0;transform:rotate(-3deg)}
+.land-ticker>div{display:inline-flex;animation:land-marq 22s linear infinite}
+.land-ticker span{font-family:var(--display);font-weight:900;font-size:24px;letter-spacing:.02em;white-space:pre}
+@keyframes land-marq{to{transform:translateX(-50%)}}
+.land-sub{font-size:16px;color:#BDBDBD;text-align:center}
+.land-proof{font-size:14px;font-weight:600;color:var(--o);text-align:center;margin-top:6px}
+.land-ctas{display:grid;gap:10px;margin-top:22px;position:relative;z-index:2}
+.landing .btn.land-create{background:var(--o);color:#111}
+.landing .btn.land-login{background:#1F1F1F;color:#fff;border:0}
+@media (hover:hover) and (pointer:fine){.landing .btn.land-create:hover{background:#FF8838}.landing .btn.land-login:hover{background:#292929}}
+/* the ball */
+.tball{position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;z-index:3;pointer-events:none;will-change:transform;transform:translate(-60px,-60px);
+  background:radial-gradient(circle at 35% 30%,#F4FF8A,#D7EE3A 55%,#B9D21E);box-shadow:inset -2px -3px 4px rgba(0,0,0,.18)}
+.tball::before,.tball::after{content:"";position:absolute;top:2px;bottom:2px;width:12px;border:2px solid rgba(255,255,255,.95);border-radius:50%}
+.tball::before{left:-7px}.tball::after{right:-7px}
+.tball{overflow:hidden}
+.ball-shadow{position:absolute;left:0;top:0;width:22px;height:6px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(1px);z-index:2;pointer-events:none;opacity:0}
+@media (prefers-reduced-motion: reduce){.land-ticker>div{animation:none}.tball,.ball-shadow{display:none}}
+/* tablet: bigger type, centred column, band still edge to edge */
+@media (min-width:700px){
+  .landing{padding:56px 48px 44px}
+  .land-top,.land-bottom{width:100%;max-width:560px;margin:0 auto}
+  .land-top img{width:104px;height:104px}
+  .land-top h1{font-size:56px}
+  .land-ticker{margin:40px -72px}
+  .land-ticker span{font-size:32px}
+  .land-sub{font-size:18px}
+}
+/* desktop: headline and buttons side by side, the band sweeping across the page between them */
+@media (min-width:1024px){
+  .landing{display:grid;grid-template-columns:1fr minmax(340px,400px);grid-template-rows:1fr auto auto 1.3fr;column-gap:64px;padding:56px max(64px,calc((100vw - 1180px)/2))}
+  .land-top{grid-column:1;grid-row:2;max-width:none;margin:0;align-self:end}
+  .land-top h1{font-size:76px}
+  .land-ticker{grid-column:1/-1;grid-row:3;margin:56px calc(-1 * max(64px,(100vw - 1180px)/2) - 80px) 0}
+  .land-ticker span{font-size:38px}
+  .land-bottom{grid-column:2;grid-row:2;align-self:end;max-width:none;margin:0}
+  .land-sub{text-align:left}
+  .land-proof{text-align:left}
+}
