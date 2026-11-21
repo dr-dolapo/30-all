@@ -5,7 +5,7 @@ export interface PublicUser {
   hand: string | null; backhand: string | null; shot: string | null; avatar: number; photoUrl: string | null;
   homeCourt?: string | null;
 }
-export interface CourtRef { id: string; name: string; area: string | null; status: string; role?: string; state?: string; address?: string | null }
+export interface CourtRef { id: string; name: string; area: string | null; status: string; role?: string; state?: string; address?: string | null; players?: number }
 export interface Racquet { brand: string; model: string; custom: boolean; primary: boolean }
 export interface Me extends PublicUser {
   email: string; status: "onboarding" | "active" | "suspended"; isAdmin: boolean; gender: string | null; dob: string | null;

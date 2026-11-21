@@ -95,7 +95,7 @@ profile.put("/me", requireUser({ allowOnboarding: true }), async (c) => {
 
   // Racquets: 1–3, exactly one primary. Listed ones must exist; custom ones are free text.
   if (b.racquets !== undefined) {
-    if (!Array.isArray(b.racquets) || b.racquets.length < 1 || b.racquets.length > 3) throw bad("Add between 1 and 3 racquets");
+    if (!Array.isArray(b.racquets) || b.racquets.length > 3) throw bad("You can add up to 3 racquets");
     const rs = b.racquets.map((r: any) => ({ brand: str(r?.brand, 40), model: str(r?.model, 60), custom: !!r?.custom, primary: !!r?.primary }));
     if (rs.some((r: any) => !r.brand || !r.model)) throw bad("Each racquet needs a brand and model");
     if (rs.filter((r: any) => r.primary).length !== 1) throw bad("Mark exactly one racquet as primary");
@@ -114,10 +114,10 @@ profile.put("/me", requireUser({ allowOnboarding: true }), async (c) => {
   if (stmts.length) await c.env.DB.batch(stmts);
 
   if (onboarding && b.complete) {
-    const fresh = await c.env.DB.prepare("SELECT gender, dob, nationality, hand FROM users WHERE id = ?").bind(u.id).first<any>();
+    // sign-up only needs what's required to play and be found; game, racquets, WhatsApp and height come later
+    const fresh = await c.env.DB.prepare("SELECT gender, dob, nationality FROM users WHERE id = ?").bind(u.id).first<any>();
     const home = await c.env.DB.prepare("SELECT 1 FROM user_courts WHERE user_id = ? AND role = 'home'").bind(u.id).first();
-    const rq = await c.env.DB.prepare("SELECT 1 FROM user_racquets WHERE user_id = ?").bind(u.id).first();
-    const missing = [!fresh.gender && "gender", !fresh.dob && "date of birth", !fresh.nationality && "nationality", !fresh.hand && "handedness", !home && "home court", !rq && "a racquet"].filter(Boolean);
+    const missing = [!fresh.gender && "gender", !fresh.dob && "date of birth", !fresh.nationality && "nationality", !home && "home court"].filter(Boolean);
     if (missing.length) throw bad(`Still needed: ${missing.join(", ")}`);
     await c.env.DB.prepare("UPDATE users SET status = 'active' WHERE id = ?").bind(u.id).run();
     await c.env.DB.prepare("INSERT INTO notifications (id,user_id,text,created_at) VALUES (?,?,?,?)").bind(newId(), u.id, emphasise(`Welcome to 30-All! Your player ID is ${u.pid}.`), now()).run();
@@ -164,9 +164,23 @@ profile.get("/ref/courts", requireUser({ allowOnboarding: true }), async (c) => 
   const u = c.get("user");
   const state = c.req.query("state");
   const q = state
-    ? c.env.DB.prepare("SELECT id, name, state, area, address, status FROM courts WHERE state = ? AND (status = 'approved' OR (status = 'pending' AND submitted_by = ?)) ORDER BY name").bind(state, u.id)
+    // busiest courts first, with how many players call them home or play there
+    ? c.env.DB.prepare(`SELECT ct.id, ct.name, ct.state, ct.area, ct.address, ct.status,
+        (SELECT COUNT(*) FROM user_courts uc JOIN users pu ON pu.id = uc.user_id WHERE uc.court_id = ct.id AND pu.status = 'active') AS players
+        FROM courts ct WHERE ct.state = ? AND (ct.status = 'approved' OR (ct.status = 'pending' AND ct.submitted_by = ?)) ORDER BY players DESC, ct.name`).bind(state, u.id)
     : c.env.DB.prepare("SELECT id, name, state, area, address, status FROM courts WHERE status = 'approved' ORDER BY state, name");
   return c.json((await q.all()).results);
+});
+
+/** For "You're in": a few players who share your home court, most recently active first. */
+profile.get("/me/court-mates", requireUser(), async (c) => {
+  const u = c.get("user");
+  const { results } = await c.env.DB.prepare(`SELECT ${PUBLIC_COLS}, ct.name AS court,
+      (SELECT MAX(m.match_date) FROM match_players mp JOIN matches m ON m.id = mp.match_id WHERE mp.user_id = u.id AND m.status = 'confirmed') AS lastPlayed
+    FROM user_courts mine JOIN user_courts uc ON uc.court_id = mine.court_id JOIN users u ON u.id = uc.user_id JOIN courts ct ON ct.id = mine.court_id
+    WHERE mine.user_id = ? AND mine.role = 'home' AND u.id != ? AND u.status = 'active'
+    ORDER BY lastPlayed IS NULL, lastPlayed DESC LIMIT 3`).bind(u.id, u.id).all<any>();
+  return c.json(results.map((r) => ({ ...publicUser(r), court: r.court, lastPlayed: r.lastPlayed })));
 });
 
 profile.post("/courts", requireUser({ allowOnboarding: true }), async (c) => {

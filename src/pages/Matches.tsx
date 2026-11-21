@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
 import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, TopBar, usePresence, useSession, useUi } from "../ui";
@@ -194,7 +194,10 @@ export function Matches() {
   const [pending, setPending] = useState<Match[]>([]);
   const [calOpen, setCalOpen] = useState(false);
   const [pendOpen, setPendOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
+  // "Log your first match" on the You're in screen lands here with ?add=1 and opens Add score
+  const [params, setParams] = useSearchParams();
+  const [adding, setAdding] = useState(params.get("add") === "1");
+  useEffect(() => { if (params.get("add")) setParams({}, { replace: true }); }, []);
 
   const [loadingDay, setLoadingDay] = useState(false);
   const [shownKey, setShownKey] = useState("");
