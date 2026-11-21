@@ -23,6 +23,13 @@ api.use("*", async (c, next) => {
 });
 
 api.get("/health", (c) => c.json({ ok: true }));
+/** For the welcome page (no sign-in): how many players and courts are on 30-All. */
+api.get("/public/stats", async (c) => {
+  const r = await c.env.DB.prepare(`SELECT (SELECT COUNT(*) FROM users WHERE status = 'active') AS players,
+    (SELECT COUNT(DISTINCT uc.court_id) FROM user_courts uc JOIN users u ON u.id = uc.user_id JOIN courts ct ON ct.id = uc.court_id WHERE u.status = 'active' AND ct.status = 'approved') AS courts`).first<{ players: number; courts: number }>();
+  c.header("Cache-Control", "public, max-age=300");
+  return c.json(r ?? { players: 0, courts: 0 });
+});
 api.route("/auth", auth);
 api.route("/", profile);
 api.route("/", matches);

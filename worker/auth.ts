@@ -107,9 +107,12 @@ auth.post("/signup", async (c) => {
     // Unverified sign-up started earlier: let them restart with new details.
     await c.env.DB.prepare("UPDATE users SET first_name=?, last_name=?, pass_hash=?, pass_salt=? WHERE id=?").bind(first, last, hash, salt, existing.id).run();
   } else {
+    // ?ref=<player ID> from an invite link; only kept if it's a real player
+    const ref = str(b.ref, 20).toUpperCase();
+    const inviter = ref ? await c.env.DB.prepare("SELECT pid FROM users WHERE pid = ? AND status = 'active'").bind(ref).first<{ pid: string }>() : null;
     await c.env.DB.prepare(
-      "INSERT INTO users (id,pid,first_name,last_name,email,pass_hash,pass_salt,status,is_admin,created_at) VALUES (?,?,?,?,?,?,?,'onboarding',?,?)",
-    ).bind(newId(), await uniquePid(c.env, first, last), first, last, email, hash, salt, isAdminEmail(c.env, email) ? 1 : 0, now()).run();
+      "INSERT INTO users (id,pid,first_name,last_name,email,pass_hash,pass_salt,status,is_admin,created_at,invited_by) VALUES (?,?,?,?,?,?,?,'onboarding',?,?,?)",
+    ).bind(newId(), await uniquePid(c.env, first, last), first, last, email, hash, salt, isAdminEmail(c.env, email) ? 1 : 0, now(), inviter?.pid ?? null).run();
   }
   await issueCode(c.env, email, "verify", (p) => c.executionCtx.waitUntil(p)).catch((e) => {
     if (!(e instanceof HttpError && e.status === 429)) throw e; // a recent code is still valid

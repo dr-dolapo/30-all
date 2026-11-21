@@ -188,7 +188,10 @@ export function Loading() { return <div className="loading">Loading…</div>; }
 export function ErrorText({ msg }: { msg?: string | null }) { return msg ? <div className="err" role="alert">{msg}</div> : null; }
 
 /** Sign-up progress: "Step 3 of 7" over a segmented bar. */
-export function StepBar({ step, total = 7 }: { step: number; total?: number }) {
+/** Sign-up is 5 steps: account, verify email, about you, home court, photo. */
+export const SIGNUP_STEPS = 5;
+
+export function StepBar({ step, total = SIGNUP_STEPS }: { step: number; total?: number }) {
   return (
     <div className="stepbar">
       <div className="steplabel">Step {step} of {total}</div>

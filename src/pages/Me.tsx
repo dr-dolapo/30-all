@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, type Notification, type PlayerProfile } from "../api";
+import { api, type Me, type Notification, type PlayerProfile } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, heightCm, profileBody, RacquetEditor, StyleFields, type Draft } from "../forms";
 import { ago, BottomNav, ErrorText, Loading, TopBar, useSession, useUi } from "../ui";
 import { usePendingCount } from "./Matches";
-import { Buildings, CheckCircle, Clock, HandWaving, ImageIcon, TennisBall, XCircle } from "../icons";
+import { Buildings, Check, CheckCircle, Clock, HandWaving, ImageIcon, TennisBall, XCircle } from "../icons";
 
 /** Icon and colour for a notification, from what it says. */
 function kindOf(text: string) {
@@ -73,6 +73,37 @@ const heightText = (cm: number | null, unit: string) => {
   return `${cm} cm`;
 };
 
+/**
+ * "Finish your profile": the optional details sign-up no longer asks for, plus the first match.
+ * A bar that's already partly full nudges people to complete it. Hidden once everything is done.
+ */
+function FinishProfile({ me, played }: { me: Me; played: number }) {
+  const items: Array<[string, string | null, boolean, string]> = [
+    ["Photo or avatar", null, true, "/me/edit"],
+    ["Home court", null, me.courts.some((c) => c.role === "home"), "/me/edit"],
+    ["First match logged", "Log a score with someone you played", played > 0, "/matches?add=1"],
+    ["Your game", "Handedness, backhand, favourite shot", !!me.hand, "/me/edit#game"],
+    ["Your racquets", "Shown on your profile", me.racquets.length > 0, "/me/edit#racquets"],
+    ["WhatsApp", "So admins can reach you about events", !!me.whatsapp, "/me/edit"],
+  ];
+  const done = items.filter((i) => i[2]).length;
+  if (done === items.length) return null;
+  return (
+    <section className="card finish" aria-label="Finish your profile">
+      <h3>Finish your profile</h3>
+      <div className="finish-bar" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done}><span style={{ width: `${(done / items.length) * 100}%` }} /></div>
+      <p className="hint" style={{ margin: "4px 0 6px" }}>{done} of {items.length} done</p>
+      {items.map(([t, sub, ok, to]) => (
+        <div key={t} className={"finish-row" + (ok ? " ok" : "")}>
+          <i aria-hidden="true">{ok ? <Check size={13} weight="bold" /> : null}</i>
+          <span className="grow">{t}{!ok && sub && <small>{sub}</small>}</span>
+          {ok ? <span className="sr-only">Done</span> : <Link to={to} className="finish-go">{to.startsWith("/matches") ? "Log" : "Add"}</Link>}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function MyProfile() {
   const { me, setMe } = useSession(); const nav = useNavigate(); const pending = usePendingCount();
   const [stats, setStats] = useState<Pick<PlayerProfile, "record" | "activity"> | null>(null);
@@ -83,6 +114,7 @@ export function MyProfile() {
     <>
       <TopBar title="My profile" right={me.isAdmin ? <Link to="/admin" className="btn sm dark" style={{ textDecoration: "none" }}>Admin</Link> : undefined} />
       <main>
+        {stats && <FinishProfile me={me} played={stats.record.played} />}
         <ProfileSections u={me} courts={me.courts} racquets={me.racquets} record={stats?.record} activity={stats?.activity} mine
           private={{ gender: me.gender, dob: me.dob, height: heightText(me.heightCm, me.heightUnit), whatsapp: me.whatsapp, email: me.email }} />
         <div className="pro-actions">
@@ -99,6 +131,8 @@ export function EditProfile() {
   const { me, refresh } = useSession(); const nav = useNavigate(); const { toast } = useUi();
   const [d, setD] = useState<Draft | null>(me ? draftFromMe(me) : null);
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  // "Add" links from Finish your profile jump to the right section
+  useEffect(() => { const id = window.location.hash.slice(1); if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 50); }, []);
   if (!me || !d) return <Loading />;
   const set = (p: Partial<Draft>) => setD({ ...d, ...p });
   const save = async () => {
@@ -106,7 +140,7 @@ export function EditProfile() {
     if (!d.first.trim() || !d.last.trim()) return setErr("Name can't be empty");
     if (!d.homeCourt) return setErr("Pick your home court");
     const h = heightCm(d); if (h !== null && (h < 120 || h > 230)) return setErr("Enter a height between 120 and 230 cm");
-    if (d.racquets.some((r) => !r.brand.trim() || !r.model.trim())) return setErr("Finish each racquet or remove it");
+    if (d.racquets.some((r) => !!r.brand.trim() !== !!r.model.trim())) return setErr("Finish each racquet (brand and model) or remove it");
     setBusy(true);
     try {
       const { dob: _dob, ...body } = profileBody(d); // date of birth is admin-only after sign-up
@@ -130,10 +164,10 @@ export function EditProfile() {
           <div className="hint">Email can't be changed yet. Ask an admin if you need to.</div>
           <AboutFields d={d} set={set} dobLocked />
         </div>
-        <div className="card"><StyleFields d={d} set={set} /></div>
+        <div className="card" id="game"><StyleFields d={d} set={set} /></div>
         <div className="h2">Courts</div>
         <CourtPicker d={d} set={set} />
-        <div className="h2">Racquets</div>
+        <div className="h2" id="racquets">Racquets</div>
         <RacquetEditor d={d} set={set} />
         <ErrorText msg={err} />
         <div style={{ marginTop: 14 }}><button className="btn" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>

@@ -51,18 +51,20 @@ function Seg({ value, options, onChange, labels }: { value: string; options: rea
 
 const maxDob = () => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10); };
 
-export function AboutFields({ d, set, dobLocked }: { d: Draft; set: Set; dobLocked?: boolean }) {
+/** `signup` shows only what sign-up needs (gender, date of birth, nationality); WhatsApp and height come later. */
+export function AboutFields({ d, set, dobLocked, signup }: { d: Draft; set: Set; dobLocked?: boolean; signup?: boolean }) {
   return (
     <>
       <label className="f">Gender <span className="req">*</span></label>
       <Seg value={d.gender} options={GENDERS} onChange={(v) => set({ gender: v })} />
       <label className="f">Date of birth <span className="req">*</span></label>
       <input className="inp" type="date" max={maxDob()} value={d.dob} disabled={dobLocked} onChange={(e) => set({ dob: e.target.value })} />
-      <div className="hint">{dobLocked ? "Only an admin can change this." : "You must be 18 or older. Used later for age-group events."}</div>
-      <label className="f">Nationality <span className="req">*</span></label>
+      <div className="hint">{dobLocked ? "Only an admin can change this." : signup ? "You must be 18 or older." : "You must be 18 or older. Used later for age-group events."}</div>
+      <label className="f">Nationality{!signup && <> <span className="req">*</span></>}</label>
       <select className="inp" value={d.nationality} onChange={(e) => set({ nationality: e.target.value })}>
         {NATIONALITIES.map((n) => <option key={n}>{n}</option>)}
       </select>
+      {signup ? <div className="onb-note">WhatsApp, height, your game and racquets are optional. Add them any time under <b>Finish your profile</b>.</div> : <>
       <label className="f">WhatsApp number</label>
       <div className="row">
         <select className="inp" style={{ flex: "0 0 96px" }} value={d.waCode} onChange={(e) => set({ waCode: e.target.value })}>
@@ -80,6 +82,7 @@ export function AboutFields({ d, set, dobLocked }: { d: Draft; set: Set; dobLock
             <select className="inp" value={d.inch} onChange={(e) => set({ inch: e.target.value })}><option value="">in</option>{Array.from({ length: 12 }, (_, i) => <option key={i}>{i}</option>)}</select>
           </div>}
       <div className="hint">Hidden from other players.</div>
+      </>}
     </>
   );
 }
@@ -99,11 +102,13 @@ export function StyleFields({ d, set }: { d: Draft; set: Set }) {
   );
 }
 
-export function CourtPicker({ d, set }: { d: Draft; set: Set }) {
+/** `homeOnly` (sign-up): search, busiest courts first with player counts, and only a home court to pick. */
+export function CourtPicker({ d, set, homeOnly }: { d: Draft; set: Set; homeOnly?: boolean }) {
   const { toast } = useUi();
   const [list, setList] = useState<CourtRef[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState(""); const [addr, setAddr] = useState(""); const [err, setErr] = useState("");
+  const [q, setQ] = useState("");
   useEffect(() => { setList(null); api.get<CourtRef[]>(`/ref/courts?state=${encodeURIComponent(d.state)}`).then(setList).catch(() => setList([])); }, [d.state]);
 
   const remember = (c: CourtRef) => ({ ...d.courtNames, [c.id]: c });
@@ -126,6 +131,46 @@ export function CourtPicker({ d, set }: { d: Draft; set: Set }) {
   };
   const elsewhere = [d.homeCourt, ...d.secCourts].filter((id) => id && !list?.some((c) => c.id === id));
 
+  const needle = q.trim().toLowerCase();
+  const shown = (list ?? []).filter((c) => !needle || c.name.toLowerCase().includes(needle) || (c.area ?? "").toLowerCase().includes(needle));
+  const players = (c: CourtRef) => (c.players ? `${c.players} player${c.players === 1 ? "" : "s"}` : "");
+
+  if (homeOnly) return (
+    <>
+      <div className="court-find">
+        <input className="inp" type="search" placeholder={`Search courts in ${d.state}`} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search courts" />
+        <select className="inp" value={d.state} onChange={(e) => { setQ(""); set({ state: e.target.value }); }} aria-label="State">{STATES.map((s) => <option key={s}>{s}</option>)}</select>
+      </div>
+      {elsewhere.length > 0 && <div className="hint">Home court: {elsewhere.map((id) => d.courtNames[id]?.name ?? "a court").join(", ")}</div>}
+      {!needle && shown.some((c) => c.players) && <div className="court-h">Most players</div>}
+      <div className="card" style={{ marginTop: needle ? 12 : 0, padding: "2px 14px" }}>
+        {list === null ? <div className="empty">Loading courts…</div> : shown.length === 0 ? <div className="empty">{needle ? `No courts match "${q.trim()}".` : `No approved courts in ${d.state} yet. Add yours below.`}</div> :
+          shown.map((c) => (
+            <div className="pl" key={c.id}>
+              <div className="grow"><div className="nm">{c.name} {c.status === "pending" && <span className="pill pend">Pending</span>}</div>
+                <div className="id">{players(c) && <span className="court-n">{players(c)}</span>}{players(c) && c.area ? " · " : ""}{c.area}</div></div>
+              <button type="button" className={"chip" + (d.homeCourt === c.id ? " on" : "")} aria-pressed={d.homeCourt === c.id} onClick={() => pick(c, "home")}>Home</button>
+            </div>
+          ))}
+      </div>
+      <div className="card">
+        {!adding ? <button type="button" className="link" onClick={() => setAdding(true)}>Can't find it? Add your court</button> : (
+          <>
+            <div style={{ fontWeight: 600 }}>Add a court in {d.state}</div>
+            <p className="hint">The admins will review it. It shows as <b>Pending</b> on your profile until it's approved.</p>
+            <label className="f">Court name</label><input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="f">Approximate address</label><input className="inp" value={addr} onChange={(e) => setAddr(e.target.value)} />
+            <ErrorText msg={err} />
+            <div className="row" style={{ marginTop: 10 }}>
+              <button type="button" className="btn sm ghost" onClick={() => setAdding(false)}>Cancel</button>
+              <button type="button" className="btn sm dark" onClick={submit}>Submit court</button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <>
       <label className="f">Country</label>
@@ -138,7 +183,7 @@ export function CourtPicker({ d, set }: { d: Draft; set: Set }) {
         {list === null ? <div className="empty">Loading courts…</div> : list.length === 0 ? <div className="empty">No approved courts in {d.state} yet. Add yours below.</div> :
           list.map((c) => (
             <div className="pl" key={c.id}>
-              <div className="grow"><div className="nm">{c.name} {c.status === "pending" && <span className="pill pend">Pending</span>}</div><div className="id">{c.area}</div></div>
+              <div className="grow"><div className="nm">{c.name} {c.status === "pending" && <span className="pill pend">Pending</span>}</div><div className="id">{c.area}{c.players ? ` · ${players(c)}` : ""}</div></div>
               <button type="button" className={"chip" + (d.homeCourt === c.id ? " on" : "")} onClick={() => pick(c, "home")}>Home</button>
               <button type="button" className={"chip" + (d.secCourts.includes(c.id) ? " on" : "")} onClick={() => pick(c, "sec")}>2nd</button>
             </div>
@@ -207,10 +252,12 @@ export function RacquetEditor({ d, set }: { d: Draft; set: Set }) {
   );
 }
 
-export function AvatarPicker({ d, set }: { d: Draft; set: Set }) {
+/** `compact` (sign-up): five avatars and a "More" button instead of all fifteen. */
+export function AvatarPicker({ d, set, compact }: { d: Draft; set: Set; compact?: boolean }) {
   const { toast } = useUi();
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<File | null>(null); // photo waiting to be positioned
+  const [all, setAll] = useState(!compact);
   const upload = async (f?: File) => {
     if (!f) return;
     setBusy(true);
@@ -234,13 +281,14 @@ export function AvatarPicker({ d, set }: { d: Draft; set: Set }) {
         {busy ? "Uploading…" : d.photoUrl ? "Upload a different photo" : "Upload a photo"}
         <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setPicked(f); }} />
       </label>
-      <div className="hint" style={{ textAlign: "center" }}>JPG, PNG or WebP, up to 5 MB.</div>
+      {!compact && <div className="hint" style={{ textAlign: "center" }}>JPG, PNG or WebP, up to 5 MB.</div>}
       {picked && <PhotoCropper file={picked} onCancel={() => setPicked(null)} onCrop={(f) => { setPicked(null); upload(f); }} />}
-      <div className="h2" style={{ marginTop: 18 }}>Or choose an avatar</div>
+      <div className="h2" style={{ marginTop: 18 }}>{compact ? "Or keep an avatar" : "Or choose an avatar"}</div>
       <div className="avgrid">
-        {AVATAR_NAMES.map((n, i) => (
-          <button type="button" key={n} title={n} aria-label={n} className={d.avatar === i && !d.photoUrl ? "on" : ""} onClick={() => chooseAvatar(i)} dangerouslySetInnerHTML={{ __html: avatarSVG(i) }} />
+        {(all ? AVATAR_NAMES.map((_, i) => i) : [d.avatar, ...[0, 2, 7, 11, 14].filter((i) => i !== d.avatar)].slice(0, 4)).map((i) => (
+          <button type="button" key={i} title={AVATAR_NAMES[i]} aria-label={AVATAR_NAMES[i]} className={d.avatar === i && !d.photoUrl ? "on" : ""} onClick={() => chooseAvatar(i)} dangerouslySetInnerHTML={{ __html: avatarSVG(i) }} />
         ))}
+        {!all && <button type="button" className="av-more" onClick={() => setAll(true)}>More</button>}
       </div>
     </>
   );
@@ -254,7 +302,8 @@ export function profileBody(d: Draft) {
     heightUnit: d.heightUnit, heightCm: heightCm(d),
     hand: d.hand || undefined, backhand: d.backhand || null, shot: d.shot || null,
     homeCourt: d.homeCourt, secCourts: d.secCourts,
-    racquets: d.racquets.map((r) => ({ brand: r.brand.trim(), model: r.model.trim(), custom: r.custom, primary: r.primary })),
+    // a racquet left completely blank is just the empty starter row, not a racquet
+    racquets: d.racquets.filter((r) => r.brand.trim() || r.model.trim()).map((r) => ({ brand: r.brand.trim(), model: r.model.trim(), custom: r.custom, primary: r.primary })),
     avatar: d.avatar,
   };
 }
