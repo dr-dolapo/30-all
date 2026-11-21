@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
-import { api, type CourtRef, type Match, type PublicUser } from "../api";
+import { api, type CourtRef, type Match, type PlayerProfile, type PublicUser } from "../api";
+import { celebrated, confetti } from "../confetti";
 import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, TopBar, usePresence, useSession, useUi } from "../ui";
 import { CalendarDots, CaretRight, Plus, X } from "../icons";
 
@@ -194,6 +195,16 @@ export function Matches() {
   const [pending, setPending] = useState<Match[]>([]);
   const [calOpen, setCalOpen] = useState(false);
   const [pendOpen, setPendOpen] = useState(false);
+  // first confirmed match: a one-time card and confetti (players who already had matches just get marked as seen)
+  const [firstMatch, setFirstMatch] = useState(false);
+  useEffect(() => {
+    if (!me || celebrated.has(me.id, "first-match")) return;
+    api.get<PlayerProfile>(`/players/${me.id}`).then((p) => {
+      if (p.record.played < 1) return;
+      celebrated.mark(me.id, "first-match");
+      if (p.record.played <= 2) { setFirstMatch(true); setTimeout(() => confetti("big"), 250); }
+    }).catch(() => {});
+  }, [me?.id]);
   // "Log your first match" on the You're in screen lands here with ?add=1 and opens Add score
   const [params, setParams] = useSearchParams();
   const [adding, setAdding] = useState(params.get("add") === "1");
@@ -237,6 +248,15 @@ export function Matches() {
           <DateStrip dates={dates} selected={date} onSelect={setDate} marked={marked} today={today} onOpenCalendar={() => setCalOpen(true)} />
         </div>
         <main className="mmain">
+          {firstMatch && (
+            <section className="cel-card" role="status">
+              <button className="cel-x" aria-label="Dismiss" onClick={() => setFirstMatch(false)}><X size={18} weight="bold" /></button>
+              <span className="cel-kicker">Milestone</span>
+              <b>Your first match is on the record</b>
+              <span>It's confirmed and now counts on the leaderboard.</span>
+              <Link to="/players" className="btn sm">See where you are</Link>
+            </section>
+          )}
           {pending.length > 0 && (
             <button className={"pbanner" + (toAnswer ? " urgent" : "")} onClick={() => setPendOpen(true)}>
               <span>

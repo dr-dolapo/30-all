@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { celebrated, confetti } from "./confetti";
 import { addDaysISO, lagosToday } from "../shared/rules";
 import { mondayOf, weekdayISO, weekStreak } from "../shared/streak";
 import { X } from "./icons";
@@ -36,8 +37,12 @@ function Cell({ iso, n, today, num }: { iso: string; n: number; today: string; n
 const MAX_WEEKS = 6;
 
 /** Up to the last 6 weeks on the profile: one row per week the player has been on 30-All. Tapping it opens the full history. */
-export function ActivityCard({ a, mine }: { a: Activity; mine: boolean }) {
+const STREAK_MILESTONES = [4, 8, 12, 26, 52];
+
+export function ActivityCard({ a, mine, uid }: { a: Activity; mine: boolean; uid?: string }) {
   const [open, setOpen] = useState(false);
+  const card = useRef<HTMLButtonElement>(null);
+  const [milestone, setMilestone] = useState(0);
   const today = lagosToday();
   // a new player sees one row in their first week, two in their second, and so on up to six
   const thisMon = mondayOf(today);
@@ -47,10 +52,27 @@ export function ActivityCard({ a, mine }: { a: Activity; mine: boolean }) {
   const s = useMemo(() => streaks(a, today), [a, today]);
   let recent = 0; for (let i = 0; i < weeks * 7; i++) recent += a.days[addDaysISO(first, i)] ?? 0;
   const rows = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, k) => addDaysISO(first, w * 7 + k)));
+
+  // your own profile: a small pop at 4, 8, 12, 26 and 52 weeks in a row, once per milestone of each streak
+  useEffect(() => {
+    if (!mine || !uid || !STREAK_MILESTONES.includes(s.current)) return;
+    const lastMon = Object.keys(a.days).some((d) => d >= thisMon && d <= today) ? thisMon : addDaysISO(thisMon, -7);
+    const key = `streak:${s.current}:${addDaysISO(lastMon, -7 * (s.current - 1))}`;
+    if (celebrated.has(uid, key) || !card.current) return;
+    setMilestone(s.current);
+    // the card is often below the fold: pop when it's actually on screen
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect(); celebrated.mark(uid, key);
+      setTimeout(() => confetti("small", card.current?.querySelector(".ac-streak b") ?? card.current), 250);
+    }, { threshold: 0.6 });
+    io.observe(card.current);
+    return () => io.disconnect();
+  }, [uid, s.current]);
   return (
     <>
       <div className="h2 ac-title">Activity</div>
-      <button type="button" className="card ac-card" onClick={() => setOpen(true)}
+      <button type="button" ref={card} className="card ac-card" onClick={() => setOpen(true)}
         aria-label={`Activity: ${recent} matches in the last ${weeks === 1 ? "week" : `${weeks} weeks`}, ${s.current} week streak. Open full history`}>
         <div className="ac-grid small" aria-hidden="true">
           {WD.map((d, i) => <span key={i} className="ac-wd">{d}</span>)}
@@ -59,7 +81,7 @@ export function ActivityCard({ a, mine }: { a: Activity; mine: boolean }) {
         {recent === 0 ? (
           <div className="ac-nudge">{(weeks === 1 ? "No matches this week." : `No matches in the last ${weeks} weeks.`) + (mine ? " Log a score to start a streak." : "")}</div>
         ) : (
-          <div className="ac-streak"><b>{s.current}</b><span>week streak</span></div>
+          <div className="ac-streak"><b>{s.current}</b><span>week streak</span>{milestone > 0 && <em className="ac-ms">{milestone} weeks in a row. Keep it going.</em>}</div>
         )}
       </button>
       {open && <ActivitySheet a={a} onClose={() => setOpen(false)} />}

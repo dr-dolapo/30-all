@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
 import { flagUrl } from "../../shared/flags";
 import { ActivityCard } from "../activity";
+import { celebrated, confetti } from "../confetti";
+import { lagosToday } from "../../shared/rules";
 import { Avatar, BottomNav, ErrorText, fullName, Loading, RecordBlock, ScoreCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
 import { Fire, Lock, MagnifyingGlass, Star, X } from "../icons";
@@ -38,6 +40,23 @@ export function Players() {
     window.scrollTo({ top: window.scrollY + r.top - window.innerHeight / 2 + r.height / 2 });
   };
   useLayoutEffect(() => { if (data && !centred.current) { centred.current = true; centre(); } }, [data]);
+
+  // celebrate climbing (a small pop from your row, at most once a day) and reaching #1 (a big burst)
+  const [climb, setClimb] = useState(0);
+  const [topSpot, setTopSpot] = useState(false);
+  useEffect(() => {
+    if (!data || !me) return;
+    const mine = data.players.find((r) => r.id === me.id);
+    if (!mine || mine.won + mine.lost === 0) return;
+    const prev = Number(celebrated.get(me.id, "rank") ?? 0), today = lagosToday();
+    celebrated.mark(me.id, "rank", String(mine.rank));
+    if (mine.rank === 1 && prev !== 1) { setTopSpot(true); setTimeout(() => confetti("big"), 300); return; }
+    if (prev > mine.rank && celebrated.get(me.id, "climb-day") !== today) {
+      celebrated.mark(me.id, "climb-day", today);
+      setClimb(prev - mine.rank);
+      setTimeout(() => confetti("small", meRow.current), 450);
+    }
+  }, [data]);
   useEffect(() => { if (data && !q) centre(); }, [q]);
 
   if (!me) return <Loading />;
@@ -64,6 +83,14 @@ export function Players() {
         <ErrorText msg={err} />
         {!data ? <Loading /> : (
           <>
+            {topSpot && mine && (
+              <section className="cel-card top1" role="status">
+                <button className="cel-x" aria-label="Dismiss" onClick={() => setTopSpot(false)}><X size={18} weight="bold" /></button>
+                <span className="cel-num">#1</span>
+                <b>You're top of the table</b>
+                <span>{data.season} season · {mine.pts} points</span>
+              </section>
+            )}
             <div className="lb-head" aria-hidden="true"><span>Pos</span><span>Player</span><span>Streak</span><span>Pts</span></div>
             <div className="card lb-list">
               {shown.map((r) => {
@@ -74,13 +101,13 @@ export function Players() {
                     <span className="lb-pos">{r.rank}</span>
                     <Avatar u={r} size={36} />
                     <span className="lb-who">
-                      <span className="lb-nm"><span>{fullName(r)}</span>{isMe && <i className="me-pill">You</i>}</span>
+                      <span className="lb-nm"><span>{fullName(r)}</span>{isMe && <i className="me-pill">You</i>}{isMe && climb > 0 && <i className="lb-up" aria-label={`Up ${climb} places`}>▲{climb}</i>}</span>
                       <span className="lb-wl">{r.won}W, {r.lost}L</span>
                       {isTarget && <span className="lb-tgt">Your next target</span>}
                     </span>
                     <span className={"lb-fl" + (r.streak ? "" : " off")} title={`${r.streak}-week streak`}><Fire size={14} weight="fill" />{r.streak}</span>
                     <span className="lb-pts">{r.pts}</span>
-                    {isMe && !needle && <span className="lb-next">{nextStep(mine, above)}</span>}
+                    {isMe && !needle && <span className="lb-next">{climb > 0 && <>You climbed {climb} place{climb > 1 ? "s" : ""} since your last visit. </>}{nextStep(mine, above)}</span>}
                   </Link>
                 );
               })}
@@ -112,7 +139,7 @@ export function ProfileSections({ u, courts, racquets, record, activity, mine = 
         {flagUrl(u.nationality) && <img className="flag" src={flagUrl(u.nationality)!} alt={u.nationality ?? ""} title={u.nationality ?? ""} width={24} height={16} />}
       </div>
       {record && <RecordBlock record={record} />}
-      {activity && <ActivityCard a={activity} mine={mine} />}
+      {activity && <ActivityCard a={activity} mine={mine} uid={u.id} />}
       <div className="h2">Tennis</div>
       <div className="card dlist">
         <div className="drow"><span>Home court</span><b>{cLine(home)}</b></div>

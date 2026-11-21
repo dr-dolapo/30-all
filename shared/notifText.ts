@@ -15,6 +15,7 @@ const LEGACY: Array<[RegExp, string]> = [
   [/^(.+?) matched an existing court, (.+?)\. Your profile now shows (.+?)\.$/, "**$1** matched an existing court, **$2**. Your profile now shows **$3**."],
   [/home court to (.+?)\. You can/, "home court to **$1**. You can"],
   [/Your player ID is ([A-Z]{2}\d+)\./, "Your player ID is **$1**."],
+  [/^(.+?) joined 30-All from your invite\./, "**$1** joined 30-All from your invite."],
 ];
 
 export function emphasise(text: string): string {

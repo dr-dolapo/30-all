@@ -853,3 +853,18 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .seg,.seg button,.seg::before{border-radius:999px}
 .top .iconbtn,.eye{border-radius:50%}
 .pw-show{border-radius:999px}
+/* ---------- confetti and celebration cards ---------- */
+.confetti-layer{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:1000}
+.cel-card{position:relative;background:#111;color:#fff;border-radius:18px;padding:16px 44px 16px 16px;margin-bottom:12px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;animation:cel-in 360ms var(--ease-out)}
+@keyframes cel-in{from{opacity:0;transform:translateY(-6px) scale(.98)}}
+.cel-card b{font-family:var(--display);font-weight:900;font-size:20px;line-height:1.15}
+.cel-card>span{font-size:13.5px;color:#cfcfcf}
+.cel-card .cel-kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--o)}
+.cel-card .btn{margin-top:8px;text-decoration:none}
+.cel-card.top1{align-items:center;text-align:center;padding:18px 44px}
+.cel-card .cel-num{font-family:var(--display);font-weight:900;font-size:44px;line-height:1;color:var(--o)}
+.cel-x{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#bbb}
+.cel-x:active{background:#222}
+.lb-up{font-style:normal;font-size:11px;font-weight:800;color:var(--ok);flex:none}
+.ac-ms{display:block;font-style:normal;font-family:Inter,system-ui,sans-serif;font-weight:600;font-size:12.5px;color:var(--o-dark,#E25F0C);margin-top:6px}
+@media (prefers-reduced-motion: reduce){.cel-card{animation:none}}

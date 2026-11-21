@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ageOn, lagosToday } from "../../shared/rules";
+import { celebrated, confetti } from "../confetti";
 import { AVATAR_COUNT } from "../../shared/data";
 import { api, type PublicUser } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, type Draft } from "../forms";
@@ -78,6 +79,13 @@ export function Done() {
   const [mates, setMates] = useState<Mate[]>([]);
   useThemeColor("#FF751F");
   useEffect(() => { api.get<Mate[]>("/me/court-mates").then(setMates).catch(() => {}); }, []);
+  // once per player: confetti from both corners as the player ID lands
+  useEffect(() => {
+    if (!me || celebrated.has(me.id, "joined")) return;
+    celebrated.mark(me.id, "joined");
+    const t = setTimeout(() => confetti("big"), 650);
+    return () => clearTimeout(t);
+  }, [me?.id]);
   if (!me) return <Loading />;
   const home = me.courts.find((c) => c.role === "home");
   const invite = `https://wa.me/?text=${encodeURIComponent(`I've joined 30-All to log our tennis scores. Join me so we can track our matches: https://thirtyall.app/?ref=${me.pid}`)}`;
