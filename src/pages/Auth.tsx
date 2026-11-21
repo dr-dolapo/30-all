@@ -10,33 +10,77 @@ function useInviteRef() {
 }
 const inviteRef = () => { try { return localStorage.getItem("invite-ref") ?? undefined; } catch { return undefined; } };
 
-const HOW = [
-  ["Play a match", "Singles or doubles, at any court"],
-  ["Log the score in 20 seconds", "Pick your opponent, type the sets"],
-  ["They confirm it", "Then it counts on the leaderboard"],
-];
+const TICKER = "PLAY A MATCH  •  LOG THE SCORE  •  THEY CONFIRM IT  •  ";
+
+/**
+ * A tennis ball is hit in from off-screen left, bounces once on Create account, and flies off right.
+ * Plain physics in requestAnimationFrame; every few seconds; skipped entirely with reduced motion.
+ */
+function BouncingBall({ stage, target }: { stage: React.RefObject<HTMLElement>; target: React.RefObject<HTMLElement> }) {
+  const ball = useRef<HTMLSpanElement>(null), shadow = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const R = 11, G = 1500;
+    let raf = 0, timer = 0;
+    const run = () => {
+      const box = stage.current?.getBoundingClientRect(), btn = target.current?.getBoundingClientRect();
+      const b = ball.current, sh = shadow.current;
+      if (!box || !btn || !b || !sh) return;
+      const W = box.width, top = btn.top - box.top - R;            // ball centre when it touches the button
+      const bx = btn.left - box.left + btn.width * (0.25 + Math.random() * 0.4), tb = 0.62;
+      const vx = (bx + 30) / tb, vy0 = -260;                         // hit slightly upwards
+      const y0 = top - (vy0 * tb + 0.5 * G * tb * tb);
+      const vyUp = -(vy0 + G * tb) * 0.78;
+      let t0: number | null = null;
+      const frame = (now: number) => {
+        if (t0 === null) t0 = now;
+        const t = (now - t0) / 1000, x = -30 + vx * t;
+        let y: number, squash = 1;
+        if (t < tb) y = y0 + vy0 * t + 0.5 * G * t * t;
+        else { const u = t - tb; y = top + vyUp * u + 0.5 * G * u * u; if (u < 0.07) squash = 0.82 + (u / 0.07) * 0.18; }
+        b.style.transform = `translate(${x - R}px, ${y - R}px) rotate(${x * 2.2}deg) scale(${1 / Math.sqrt(squash)}, ${squash})`;
+        const near = Math.max(0, 1 - Math.max(0, top - y) / 160);
+        const over = x > btn.left - box.left && x < btn.right - box.left;
+        sh.style.opacity = over ? (near * 0.8).toFixed(2) : "0";
+        sh.style.transform = `translate(${x - R}px, ${top + R - 3}px) scale(${0.5 + near * 0.6})`;
+        if (x < W + 40 && y < box.height + 40) raf = requestAnimationFrame(frame);
+        else { sh.style.opacity = "0"; timer = window.setTimeout(run, 4200 + Math.random() * 1800); }
+      };
+      raf = requestAnimationFrame(frame);
+    };
+    timer = window.setTimeout(run, 1200);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
+  }, []);
+  return <><span ref={shadow} className="ball-shadow" aria-hidden="true" /><span ref={ball} className="tball" aria-hidden="true" /></>;
+}
 
 export function Welcome() {
   const nav = useNavigate();
   const [stats, setStats] = useState<{ players: number; courts: number } | null>(null);
-  useThemeColor("#FF751F");
+  const stage = useRef<HTMLDivElement>(null), create = useRef<HTMLButtonElement>(null);
+  useThemeColor("#111111");
   useInviteRef();
   useEffect(() => { api.get<{ players: number; courts: number }>("/public/stats").then(setStats).catch(() => {}); }, []);
   return (
-    <div className="welcome">
-      <div>
-        <img src="/logo-black.png" alt="30-All" />
-        <h2>Your tennis.<br />Your scores.<br />Your crew.</h2>
-        <ol className="how">
-          {HOW.map(([t, s], i) => <li key={t}><i>{i + 1}</i><span><b>{t}</b><small>{s}</small></span></li>)}
-        </ol>
+    <div className="landing" ref={stage}>
+      <div className="land-top">
+        <img src="/logo-white.png" alt="30-All" />
+        <h1>Your tennis.<br />Your scores.<br />Your crew.</h1>
+      </div>
+      {/* stadium LED band: the three steps, on a loop */}
+      <div className="land-ticker" aria-label="Play a match. Log the score. They confirm it.">
+        <div aria-hidden="true"><span>{TICKER.repeat(4)}</span><span>{TICKER.repeat(4)}</span></div>
+      </div>
+      <div className="land-bottom">
+        <p className="land-sub">Your scores, settled and on the leaderboard.</p>
         {/* only worth showing once there's a real crowd */}
-        {stats && stats.players >= 20 && <p className="proof">{stats.players} players at {stats.courts} court{stats.courts === 1 ? "" : "s"} already</p>}
+        {stats && stats.players >= 20 && <p className="land-proof">{stats.players} players at {stats.courts} court{stats.courts === 1 ? "" : "s"} already</p>}
+        <div className="land-ctas">
+          <button ref={create} className="btn land-create" onClick={() => nav("/signup")}>Create account</button>
+          <button className="btn land-login" onClick={() => nav("/login")}>Log in</button>
+        </div>
       </div>
-      <div>
-        <button className="btn" onClick={() => nav("/signup")}>Create account</button>
-        <button className="btn ghost" onClick={() => nav("/login")}>Log in</button>
-      </div>
+      <BouncingBall stage={stage} target={create} />
     </div>
   );
 }
