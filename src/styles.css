@@ -848,3 +848,8 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
   .land-sub{text-align:left}
   .land-proof{text-align:left}
 }
+/* ---------- fully rounded buttons everywhere ---------- */
+.btn,.btn.sm,.landing .btn{border-radius:999px}
+.seg,.seg button,.seg::before{border-radius:999px}
+.top .iconbtn,.eye{border-radius:50%}
+.pw-show{border-radius:999px}
