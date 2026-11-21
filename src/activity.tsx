@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDaysISO, lagosToday } from "../shared/rules";
+import { mondayOf, weekdayISO, weekStreak } from "../shared/streak";
 import { X } from "./icons";
 import { usePresence } from "./ui";
 
@@ -13,15 +14,13 @@ export interface Activity { days: Record<string, number>; since: string }
 const WD = ["M", "T", "W", "T", "F", "S", "S"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const level = (n: number) => (n <= 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3);
-const weekday = (iso: string) => (new Date(iso + "T12:00:00Z").getUTCDay() + 6) % 7; // Monday = 0
-const mondayOf = (iso: string) => addDaysISO(iso, -weekday(iso));
+const weekday = weekdayISO; // Monday = 0
 const nice = (iso: string) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 export function streaks(a: Activity, today = lagosToday()) {
   const weekHas = (mon: string) => { for (let k = 0; k < 7; k++) if (a.days[addDaysISO(mon, k)]) return true; return false; };
   const thisMon = mondayOf(today), firstMon = mondayOf(a.since <= today ? a.since : today);
-  let current = 0, mon = weekHas(thisMon) ? thisMon : addDaysISO(thisMon, -7);
-  while (mon >= firstMon && weekHas(mon)) { current++; mon = addDaysISO(mon, -7); }
+  const current = weekStreak(Object.keys(a.days), today);
   let best = 0, run = 0;
   for (let m = firstMon; m <= thisMon; m = addDaysISO(m, 7)) { if (weekHas(m)) best = Math.max(best, ++run); else run = 0; }
   const matches = Object.values(a.days).reduce((x, n) => x + n, 0);

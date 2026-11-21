@@ -1,52 +1,92 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type CourtRef, type PlayerProfile, type PublicUser, type Racquet } from "../api";
 import { flagUrl } from "../../shared/flags";
 import { ActivityCard } from "../activity";
 import { Avatar, BottomNav, ErrorText, fullName, Loading, RecordBlock, ScoreCard, TopBar, useSession } from "../ui";
 import { usePendingCount } from "./Matches";
-import { Lock, Star } from "../icons";
+import { Fire, Lock, MagnifyingGlass, Star, X } from "../icons";
 
+interface LbRow extends PublicUser { rank: number; pts: number; won: number; lost: number; streak: number }
+
+/** What it takes to pass the player directly above you, in show-up points (a singles win is 3). */
+function nextStep(me: LbRow | undefined, above: LbRow | undefined): ReactNode {
+  if (!me) return null;
+  if (me.won + me.lost === 0) return <>Log your first match to get on the board. <b>A singles win earns 3</b>, and even a loss earns 1.</>;
+  if (!above) return <>You're <b>top of the table</b>. Keep logging matches to stay there.</>;
+  const gap = above.pts - me.pts;
+  if (gap <= 0) return <>Level on points with {above.first} (#{above.rank}). <b>One win</b> puts you above.</>;
+  const wins = Math.floor(gap / 3) + 1;
+  return <><b>{gap} point{gap > 1 ? "s" : ""}</b> behind {above.first} (#{above.rank}). <b>Win {wins} singles match{wins > 1 ? "es" : ""}</b> to pass {above.first}.</>;
+}
+
+/** The Players tab: this season's leaderboard, opened with your own row in the middle of the screen. */
 export function Players() {
-  const { me, refresh } = useSession(); const pending = usePendingCount();
-  const [popped, setPopped] = useState<string | null>(null);
+  const { me } = useSession(); const pending = usePendingCount();
+  const [data, setData] = useState<{ season: string; players: LbRow[] } | null>(null);
+  const [err, setErr] = useState("");
+  const [searching, setSearching] = useState(false);
   const [q, setQ] = useState("");
-  const [all, setAll] = useState<PublicUser[] | null>(null);
-  const [res, setRes] = useState<PublicUser[] | null>(null);
-  useEffect(() => { api.get<PublicUser[]>("/players").then(setAll).catch(() => setAll([])); }, []);
-  useEffect(() => {
-    if (!q.trim()) { setRes(null); return; }
-    const t = setTimeout(() => api.get<PublicUser[]>(`/players?q=${encodeURIComponent(q.trim())}`).then(setRes).catch(() => setRes([])), 250);
-    return () => clearTimeout(t);
-  }, [q]);
-  if (!me) return <Loading />;
-  const toggle = async (id: string) => {
-    if (!me.favourites.includes(id)) setPopped(id);
-    if (me.favourites.includes(id)) await api.del(`/favourites/${id}`); else await api.put(`/favourites/${id}`);
-    refresh();
+  const meRow = useRef<HTMLAnchorElement>(null);
+  const centred = useRef(false);
+  useEffect(() => { api.get<{ season: string; players: LbRow[] }>("/leaderboard").then(setData).catch((e) => setErr(e.message)); }, []);
+
+  // open with your row in the middle of the screen (and come back to it when a search is cleared)
+  const centre = () => {
+    const el = meRow.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + r.top - window.innerHeight / 2 + r.height / 2 });
   };
-  const row = (u: PublicUser) => (
-    <div className="pl" key={u.id}>
-      <Avatar u={u} size={42} />
-      <Link to={`/players/${u.id}`} className="grow" style={{ textDecoration: "none" }}><div className="nm">{fullName(u)}</div><div className="id">{u.pid}{u.homeCourt ? ` · ${u.homeCourt}` : ""}</div></Link>
-      <button className={"star" + (me.favourites.includes(u.id) ? " on" : "")} data-pop={popped === u.id && me.favourites.includes(u.id) ? "" : undefined} aria-label={me.favourites.includes(u.id) ? "Remove from favourites" : "Add to favourites"} onClick={() => toggle(u.id)}><Star size={22} weight={me.favourites.includes(u.id) ? "fill" : "regular"} /></button>
-    </div>
-  );
-  const favs = (all ?? []).filter((u) => me.favourites.includes(u.id));
-  const others = (all ?? []).filter((u) => !me.favourites.includes(u.id));
+  useLayoutEffect(() => { if (data && !centred.current) { centred.current = true; centre(); } }, [data]);
+  useEffect(() => { if (data && !q) centre(); }, [q]);
+
+  if (!me) return <Loading />;
+  const rows = data?.players ?? [];
+  const mineIdx = rows.findIndex((r) => r.id === me.id);
+  const mine = rows[mineIdx], above = mineIdx > 0 ? rows[mineIdx - 1] : undefined;
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? rows.filter((r) => fullName(r).toLowerCase().includes(needle) || r.pid.toLowerCase().includes(needle)) : rows;
+
   return (
     <>
-      <TopBar title="Players" />
-      <main>
-        <input className="inp" placeholder="Search by first name, last name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
-        {res !== null ? (
-          <><div className="h2" style={{ marginTop: 16 }}>Results</div><div className="card" style={{ padding: "4px 14px" }}>{res.length ? res.map(row) : <div className="empty">No players found.</div>}</div></>
-        ) : all === null ? <Loading /> : (
+      <TopBar title="Players" right={
+        <button className={"iconbtn" + (searching ? " on" : "")} aria-label={searching ? "Close search" : "Search players"} aria-expanded={searching}
+          onClick={() => { setSearching(!searching); if (searching) setQ(""); }}>
+          {searching ? <X size={20} weight="bold" /> : <MagnifyingGlass size={20} weight="bold" />}
+        </button>} />
+      <main className="lb">
+        {searching && (
+          <div className="lb-search">
+            <MagnifyingGlass size={18} aria-hidden="true" />
+            <input type="search" autoFocus placeholder="Search by name or player ID" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search players" />
+          </div>
+        )}
+        <ErrorText msg={err} />
+        {!data ? <Loading /> : (
           <>
-            <div className="h2" style={{ marginTop: 16 }}>Favourites</div>
-            <div className="card" style={{ padding: "4px 14px" }}>{favs.length ? favs.map(row) : <div className="empty">Tap the star next to a player you play often.</div>}</div>
-            <div className="h2">{favs.length ? "Other players" : "Everyone"}</div>
-            <div className="card" style={{ padding: "4px 14px" }}>{others.length ? others.map(row) : <div className="empty">{all.length ? "Everyone you know is in your favourites." : "No other players yet. Invite your friends!"}</div>}</div>
+            <div className="lb-head" aria-hidden="true"><span>Pos</span><span>Player</span><span>Streak</span><span>Pts</span></div>
+            <div className="card lb-list">
+              {shown.map((r) => {
+                const isMe = r.id === me.id, isTarget = !needle && above?.id === r.id;
+                return (
+                  <Link key={r.id} ref={isMe ? meRow : undefined} to={isMe ? "/me" : `/players/${r.id}`}
+                    className={"lb-row" + (isMe ? " me" : "") + (isTarget ? " target" : "")}>
+                    <span className="lb-pos">{r.rank}</span>
+                    <Avatar u={r} size={36} />
+                    <span className="lb-who">
+                      <span className="lb-nm"><span>{fullName(r)}</span>{isMe && <i className="me-pill">You</i>}</span>
+                      <span className="lb-wl">{r.won}W, {r.lost}L</span>
+                      {isTarget && <span className="lb-tgt">Your next target</span>}
+                    </span>
+                    <span className={"lb-fl" + (r.streak ? "" : " off")} title={`${r.streak}-week streak`}><Fire size={14} weight="fill" />{r.streak}</span>
+                    <span className="lb-pts">{r.pts}</span>
+                    {isMe && !needle && <span className="lb-next">{nextStep(mine, above)}</span>}
+                  </Link>
+                );
+              })}
+              {shown.length === 0 && <div className="empty">No players match "{q.trim()}".</div>}
+            </div>
+            <p className="lb-foot">{data.season} season · Singles win 3 · Doubles win 2 · Any loss 1. Only confirmed scores count, and only your first 3 matches a month against the same opponent earn points.</p>
           </>
         )}
       </main>

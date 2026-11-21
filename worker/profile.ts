@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { AVATAR_COUNT, BACKHANDS, GENDERS, HANDS, NATIONALITIES, SHOTS, STATES, WHATSAPP_CODES } from "../shared/data";
-import { ageOn, isISODate, MIN_AGE } from "../shared/rules";
+import { ageOn, isISODate, lagosToday, MIN_AGE } from "../shared/rules";
+import { compareScores, scoreSeason, type LbMatch } from "../shared/leaderboard";
+import { weekStreak } from "../shared/streak";
 import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { PUBLIC_COLS, publicUser, recordFor, sideOf, userCourts, userRacquets, photoUrl } from "./queries";
@@ -204,6 +206,30 @@ profile.get("/players", requireUser(), async (c) => {
        FROM users u WHERE u.status = 'active' AND u.id != ? ORDER BY u.first_name LIMIT 300`,
     ).bind(u.id).all<any>();
   return c.json(results.map((r) => ({ ...publicUser(r), homeCourt: r.home })));
+});
+
+/** The Players tab: this season's table, everyone active, ranked by show-up points. */
+profile.get("/leaderboard", requireUser(), async (c) => {
+  const today = lagosToday();
+  const season = /^\d{4}$/.test(c.req.query("season") ?? "") ? c.req.query("season")! : today.slice(0, 4);
+  const [{ results: rows }, { results: users }] = await Promise.all([
+    c.env.DB.prepare(`SELECT m.id, m.match_date AS date, m.type, m.winner_side AS winner, mp.user_id AS uid, mp.side
+      FROM matches m JOIN match_players mp ON mp.match_id = m.id WHERE m.status = 'confirmed' ORDER BY m.match_date, m.submitted_at, m.id`).all<any>(),
+    c.env.DB.prepare(`SELECT ${PUBLIC_COLS} FROM users u WHERE u.status = 'active'`).all<any>(),
+  ]);
+  const matches: LbMatch[] = []; const days = new Map<string, string[]>();
+  for (const r of rows) {
+    let m = matches[matches.length - 1];
+    if (!m || m.id !== r.id) { m = { id: r.id, date: r.date, type: r.type, winner: r.winner, players: [] }; matches.push(m); }
+    m.players.push({ id: r.uid, side: r.side });
+    (days.get(r.uid) ?? days.set(r.uid, []).get(r.uid)!).push(r.date);
+  }
+  const scores = scoreSeason(matches, season);
+  const table = users.map((u) => {
+    const s = scores.get(u.id) ?? { id: u.id, pts: 0, won: 0, lost: 0, lastWin: null };
+    return { ...s, name: `${u.first_name} ${u.last_name}`, user: publicUser(u), streak: weekStreak(days.get(u.id) ?? [], today) };
+  }).sort(compareScores);
+  return c.json({ season, players: table.map((t, i) => ({ rank: i + 1, pts: t.pts, won: t.won, lost: t.lost, streak: t.streak, ...t.user })) });
 });
 
 profile.get("/players/:id", requireUser(), async (c) => {
