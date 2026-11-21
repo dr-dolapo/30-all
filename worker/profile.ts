@@ -7,6 +7,7 @@ import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { PUBLIC_COLS, publicUser, recordFor, sideOf, userCourts, userRacquets, photoUrl } from "./queries";
 import { emphasise } from "../shared/notifText";
+import { notify } from "./notify";
 
 export const profile = new Hono<AppEnv>();
 
@@ -121,6 +122,9 @@ profile.put("/me", requireUser({ allowOnboarding: true }), async (c) => {
     if (missing.length) throw bad(`Still needed: ${missing.join(", ")}`);
     await c.env.DB.prepare("UPDATE users SET status = 'active' WHERE id = ?").bind(u.id).run();
     await c.env.DB.prepare("INSERT INTO notifications (id,user_id,text,created_at) VALUES (?,?,?,?)").bind(newId(), u.id, emphasise(`Welcome to 30-All! Your player ID is ${u.pid}.`), now()).run();
+    // tell whoever invited them (WhatsApp invite link) that their friend has joined
+    const inv = await c.env.DB.prepare("SELECT i.id, x.first_name AS first, x.last_name AS last FROM users x JOIN users i ON i.pid = x.invited_by WHERE x.id = ? AND i.status = 'active'").bind(u.id).first<{ id: string; first: string; last: string }>();
+    if (inv) await notify(c.env, (p) => c.executionCtx.waitUntil(p), [inv.id], `${inv.first} ${inv.last} joined 30-All from your invite. Log your next match with them.`, { subject: `${inv.first} joined 30-All from your invite` });
   }
   return c.json({ ok: true });
 });

@@ -4,7 +4,8 @@ import { api, type Me, type Notification, type PlayerProfile } from "../api";
 import { AboutFields, AvatarPicker, CourtPicker, draftFromMe, heightCm, profileBody, RacquetEditor, StyleFields, type Draft } from "../forms";
 import { ago, BottomNav, ErrorText, Loading, TopBar, useSession, useUi } from "../ui";
 import { usePendingCount } from "./Matches";
-import { Buildings, Check, CheckCircle, Clock, HandWaving, ImageIcon, TennisBall, XCircle } from "../icons";
+import { Buildings, Check, CheckCircle, Clock, HandWaving, ImageIcon, TennisBall, UserPlus, XCircle } from "../icons";
+import { celebrated, confetti } from "../confetti";
 
 /** Icon and colour for a notification, from what it says. */
 function kindOf(text: string) {
@@ -15,6 +16,7 @@ function kindOf(text: string) {
   if (t.includes("court")) return { icon: <Buildings size={18} weight="fill" />, tone: "info" };
   if (t.includes("accepted")) return { icon: <CheckCircle size={18} weight="fill" />, tone: "ok" };
   if (t.includes("welcome")) return { icon: <HandWaving size={18} weight="fill" />, tone: "info" };
+  if (t.includes("from your invite")) return { icon: <UserPlus size={18} weight="fill" />, tone: "ok" };
   return { icon: <TennisBall size={18} weight="fill" />, tone: "o" };
 }
 
@@ -37,6 +39,16 @@ export function Inbox() {
   useEffect(() => {
     api.get<Notification[]>("/notifications").then((l) => { setList(l); if (l.some((n) => !n.readAt)) api.post("/notifications/read").then(refresh); }).catch(() => setList([]));
   }, []);
+  // a friend joined from your invite: a small pop from that notification, once
+  const { me } = useSession();
+  useEffect(() => {
+    if (!list || !me) return;
+    const n = list.find((x) => !x.readAt && x.text.includes("joined 30-All from your invite") && !celebrated.has(me.id, `invite:${x.id}`));
+    if (!n) return;
+    celebrated.mark(me.id, `invite:${n.id}`);
+    const t = setTimeout(() => confetti("small", document.querySelector(`[data-nid="${n.id}"]`)), 400);
+    return () => clearTimeout(t);
+  }, [list]);
   return (
     <>
       <TopBar title="Inbox" />
@@ -49,7 +61,7 @@ export function Inbox() {
                 {items.map((n) => {
                   const k = kindOf(n.text.replace(/\*\*/g, ""));
                   return (
-                    <div key={n.id} className={"notif" + (n.readAt ? "" : " unread")} style={n.matchId ? { cursor: "pointer" } : undefined} onClick={() => n.matchId && nav("/matches")}>
+                    <div key={n.id} data-nid={n.id} className={"notif" + (n.readAt ? "" : " unread")} style={n.matchId ? { cursor: "pointer" } : undefined} onClick={() => n.matchId && nav("/matches")}>
                       <span className={"nicon " + k.tone} aria-hidden="true">{k.icon}</span>
                       <div className="nbody"><div className="t">{richText(n.text)}</div><div className="tm">{ago(n.at)}</div></div>
                       {!n.readAt && <span className="dotu" aria-label="Unread" />}
