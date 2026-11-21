@@ -737,3 +737,20 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .lb-next{grid-column:2/-1;background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.4;color:#4a2208}
 .lb-next b{color:var(--o-dark,#E25F0C)}
 .lb-foot{font-size:12px;color:var(--mute);text-align:center;margin:14px 8px 4px;line-height:1.5}
+/* ---------- Matches header: same top bar as every page, Me/All on the right, white day strip ---------- */
+.mscreen{background:transparent}
+.mstick{position:sticky;top:0;z-index:6}
+.mstick .top{position:static;border-bottom:0}
+.mstick .top{padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.mtoggle{width:auto;padding:3px;flex:none}
+.mtoggle button{flex:none;width:50px;padding:5px 0;font-size:14px;font-weight:700;color:#fff}
+.mtoggle button.on{color:#6E3210}
+.mtoggle::before{top:3px;bottom:3px;left:3px;width:50px}
+.dstrip-band{background:#fff;border-bottom:1px solid var(--line)}
+.dstrip-wrap,.dcal{background:#fff}
+.dstrip-wrap::before{background:linear-gradient(to left,rgba(255,255,255,0),#fff)}
+.dfade{background:linear-gradient(to right,rgba(255,255,255,0),#fff)}
+.dday{color:#A3A3A3}
+.dday.sel{color:#0A0A0A}
+.dcal{color:var(--ink)}
+@media (min-width:768px){.dstrip-wrap{border-radius:0}}

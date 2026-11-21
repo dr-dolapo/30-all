@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PublicUser } from "../api";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, usePresence, useSession, useThemeColor, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, TopBar, usePresence, useSession, useUi } from "../ui";
 import { CalendarDots, CaretRight, Plus, X } from "../icons";
 
 /* ---------- helpers ---------- */
@@ -47,7 +47,7 @@ function MeAllToggle({ value, onChange }: { value: "me" | "all"; onChange: (v: "
 
 /* ---------- date strip ---------- */
 
-const CalIcon = () => <CalendarDots size={32} weight="bold" color="#fff" />;
+const CalIcon = () => <CalendarDots size={28} weight="bold" />;
 
 function DateStrip({ dates, selected, onSelect, marked, today, onOpenCalendar }: {
   dates: string[]; selected: string; onSelect: (d: string) => void; marked: Set<string>; today: string; onOpenCalendar: () => void;
@@ -64,7 +64,7 @@ function DateStrip({ dates, selected, onSelect, marked, today, onOpenCalendar }:
     first.current = false;
   }, [selected, dates.length]);
   return (
-    <div className="dstrip-wrap">
+    <div className="dstrip-band"><div className="dstrip-wrap">
       <div className="dstrip" ref={ref}>
         {dates.map((d) => {
           const { top, bottom } = dayLabel(d, today);
@@ -79,7 +79,7 @@ function DateStrip({ dates, selected, onSelect, marked, today, onOpenCalendar }:
       </div>
       <div className="dfade" aria-hidden="true" />
       <button className="dcal" aria-label="Pick a date" onClick={onOpenCalendar}><CalIcon /></button>
-    </div>
+    </div></div>
   );
 }
 
@@ -186,7 +186,6 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
 
 export function Matches() {
   const { me } = useSession();
-  useThemeColor("#D4D4D4");
   const today = lagosToday();
   const [scope, setScope] = useState<"me" | "all">("me");
   const [date, setDate] = useState(today);
@@ -229,8 +228,11 @@ export function Matches() {
   return (
     <>
       <div className="mscreen">
-        <div className="mhead"><MeAllToggle value={scope} onChange={setScope} /></div>
-        <DateStrip dates={dates} selected={date} onSelect={setDate} marked={marked} today={today} onOpenCalendar={() => setCalOpen(true)} />
+        {/* title and days stay pinned while the matches scroll */}
+        <div className="mstick">
+          <TopBar title="Matches" right={<MeAllToggle value={scope} onChange={setScope} />} />
+          <DateStrip dates={dates} selected={date} onSelect={setDate} marked={marked} today={today} onOpenCalendar={() => setCalOpen(true)} />
+        </div>
         <main className="mmain">
           {pending.length > 0 && (
             <button className={"pbanner" + (toAnswer ? " urgent" : "")} onClick={() => setPendOpen(true)}>
