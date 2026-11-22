@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { addDaysISO, evalScore, FORMATS, lagosToday, MAX_BACKDATE_DAYS, type FormatKey } from "../../shared/rules";
 import { api, type CourtRef, type Match, type PlayerProfile, type PublicUser } from "../api";
 import { celebrated, confetti } from "../confetti";
-import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, TopBar, usePresence, useSession, useUi } from "../ui";
+import { Avatar, BottomNav, Calendar, ErrorText, fullName, Loading, ScoreCard, TopBar, useDialogFocus, usePresence, useSession, useUi } from "../ui";
 import { CalendarDots, CaretRight, Plus, X } from "../icons";
 
 /* ---------- helpers ---------- */
@@ -88,6 +88,7 @@ function DatePickerModal({ selected, min, max, marked, onPick, onClose }: {
   selected: string; min: string; max: string; marked: Set<string>; onPick: (d: string) => void; onClose: () => void;
 }) {
   const { state, close } = usePresence(onClose, 160);
+  const dref = useDialogFocus();
   const d = parse(selected);
   const [month, setMonth] = useState({ y: d.getUTCFullYear(), m: d.getUTCMonth() });
   useEffect(() => {
@@ -96,7 +97,7 @@ function DatePickerModal({ selected, min, max, marked, onPick, onClose }: {
   }, [close]);
   return (
     <div className="dialog-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="dialog datepick" data-state={state} role="dialog" aria-modal="true" aria-label="Pick a date">
+      <div ref={dref} className="dialog datepick" data-state={state} role="dialog" aria-modal="true" aria-label="Pick a date">
         <Calendar month={month} onMonth={setMonth} days={marked} selected={selected} min={min} max={max} onSelect={(x) => { if (x) close(() => onPick(x)); }} />
         <button className="btn ghost" style={{ marginTop: 12 }} onClick={() => close()}>Close</button>
       </div>
@@ -145,6 +146,7 @@ function LoveLove() {
 function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClose: () => void; onChanged: () => void }) {
   const { me } = useSession(); const { toast, confirm } = useUi();
   const { state, close } = usePresence(onClose, 280);
+  const dref = useDialogFocus();
   const [leaving, setLeaving] = useState<string | null>(null);
   if (!me) return null;
   const toAnswer = pending.filter((m) => m.teamB.some((p) => p.id === me.id));
@@ -172,7 +174,7 @@ function PendingSheet({ pending, onClose, onChanged }: { pending: Match[]; onClo
   };
   return (
     <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Pending scores">
+      <div ref={dref} className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Pending scores">
         <div className="sheet-head"><h3>Pending scores</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
         {toAnswer.length > 0 && <><div className="h2">Needs your answer ({toAnswer.length})</div>{toAnswer.map(item)}</>}
         {waiting.length > 0 && <><div className="h2">Waiting on opponents</div>{waiting.map(item)}</>}
@@ -279,7 +281,7 @@ export function Matches() {
           )}
         </main>
         <button className="fab" aria-label="Add a score" onClick={() => setAdding(true)}>
-          <Plus size={30} weight="bold" color="#fff" />
+          <Plus size={30} weight="bold" color="#111" />
         </button>
       </div>
       <BottomNav pending={toAnswer} />
@@ -297,6 +299,7 @@ type Slot = "partner" | "opp0" | "opp1";
 function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: string; onClose: () => void; onSubmitted: () => void }) {
   const { me } = useSession(); const { toast } = useUi();
   const { state, close } = usePresence(onClose, 280);
+  const dref = useDialogFocus();
   const today = lagosToday();
   const minDate = addDaysISO(today, -MAX_BACKDATE_DAYS);
   const tooOld = defaultDate < minDate;
@@ -368,13 +371,13 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
   ) : (
     <button className="se-row" onClick={() => slot && setPicker(slot)}>
       <span className="se-plus" aria-hidden="true"><Plus size={20} weight="bold" /></span>
-      <span className="se-who"><b>Add Player</b><small>{label}</small></span>
+      <span className="se-who"><b>Add player</b><small>{label}</small></span>
     </button>
   );
 
   return (
     <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="sheet addsheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add a score">
+      <div ref={dref} className="sheet addsheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add a score">
         <div className="grabber" aria-hidden="true" />
         <div className="sheet-head">
           <h3>{phase === 1 ? "Add a score" : "Score"}</h3>
@@ -384,23 +387,23 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
 
         {phase === 1 ? (
           <>
-            <label className="f" style={{ marginTop: 0 }}>Match type</label>
-            <div className="seg">
+            <div className="f" id="f-mtype" style={{ marginTop: 0 }}>Match type</div>
+            <div className="seg" role="group" aria-labelledby="f-mtype">
               {(["singles", "doubles"] as const).map((t) => (
-                <button key={t} className={type === t ? "on" : ""} onClick={() => setType(t)}>{t === "singles" ? "Singles" : "Doubles"}</button>
+                <button key={t} aria-pressed={type === t} className={type === t ? "on" : ""} onClick={() => setType(t)}>{t === "singles" ? "Singles" : "Doubles"}</button>
               ))}
             </div>
-            <label className="f">Date</label>
-            <input className="inp" type="date" value={date} min={minDate} max={today} onChange={(e) => setDate(e.target.value)} />
+            <label className="f" htmlFor="f-matches-date">Date</label>
+            <input id="f-matches-date" className="inp" type="date" value={date} min={minDate} max={today} onChange={(e) => setDate(e.target.value)} />
             {tooOld && <div className="hint">Scores can only be logged for the last {MAX_BACKDATE_DAYS} days, so this is set to today.</div>}
-            <label className="f">Court</label>
-            <select className="inp" value={courtId} onChange={(e) => setCourtId(e.target.value)}>
+            <label className="f" htmlFor="f-matches-court">Court</label>
+            <select id="f-matches-court" className="inp" value={courtId} onChange={(e) => setCourtId(e.target.value)}>
               <option value="">Choose court…</option>
               {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <label className="f">Format</label>
-            <div className="chips">
-              {(Object.keys(FORMATS) as FormatKey[]).map((k) => <button key={k} className={"chip" + (format === k ? " on" : "")} onClick={() => { setFormat(k); setRaw([["", ""], ["", ""], ["", ""]]); }}>{FORMATS[k].label}</button>)}
+            <div className="f" id="f-format">Format</div>
+            <div className="chips" role="group" aria-labelledby="f-format">
+              {(Object.keys(FORMATS) as FormatKey[]).map((k) => <button key={k} aria-pressed={format === k} className={"chip" + (format === k ? " on" : "")} onClick={() => { setFormat(k); setRaw([["", ""], ["", ""], ["", ""]]); }}>{FORMATS[k].label}</button>)}
             </div>
             <div className="hint">{F.sub}</div>
             <ErrorText msg={err} />
@@ -444,6 +447,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
 
 function PlayerPicker({ exclude, onPick, onClose }: { exclude: string[]; onPick: (u: PublicUser) => void; onClose: () => void }) {
   const { state, close } = usePresence(onClose, 280);
+  const dref = useDialogFocus();
   const [q, setQ] = useState(""); const [favs, setFavs] = useState<PublicUser[] | null>(null); const [res, setRes] = useState<PublicUser[] | null>(null); const [err, setErr] = useState("");
   useEffect(() => { api.get<PublicUser[]>("/favourites").then(setFavs).catch(() => setFavs([])); }, []);
   useEffect(() => {
@@ -452,16 +456,16 @@ function PlayerPicker({ exclude, onPick, onClose }: { exclude: string[]; onPick:
     return () => clearTimeout(t);
   }, [q]);
   const row = (u: PublicUser) => (
-    <div className="pl" key={u.id} style={{ cursor: "pointer" }} onClick={() => close(() => onPick(u))}>
-      <Avatar u={u} size={38} /><div className="grow"><div className="nm">{fullName(u)}</div><div className="id">{u.pid}{u.homeCourt ? ` · ${u.homeCourt}` : ""}</div></div>
-    </div>
+    <button type="button" className="pl" key={u.id} onClick={() => close(() => onPick(u))}>
+      <Avatar u={u} size={38} /><span className="grow"><span className="nm">{fullName(u)}</span><span className="id">{u.pid}{u.homeCourt ? ` · ${u.homeCourt}` : ""}</span></span>
+    </button>
   );
   const filt = (l: PublicUser[] | null) => (l ?? []).filter((u) => !exclude.includes(u.id));
   return (
     <div className="sheet-bg" data-state={state} style={{ zIndex: 25 }} onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) close(); }}>
-      <div className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add player">
+      <div ref={dref} className="sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Add player">
         <div className="sheet-head"><h3>Add player</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
-        <input className="inp" autoFocus placeholder="Search first name, last name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="inp" type="search" aria-label="Search players" autoFocus placeholder="Search first name, last name or ID" value={q} onChange={(e) => setQ(e.target.value)} />
         <ErrorText msg={err} />
         <div style={{ marginTop: 6 }}>
           {res !== null ? (filt(res).length ? filt(res).map(row) : <div className="empty">No registered player matches "{q}".<br />Only players on 30-All can be added.</div>)

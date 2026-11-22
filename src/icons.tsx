@@ -2,5 +2,5 @@
 // Use these instead of drawing icons by hand or using emoji/text glyphs.
 export {
   Bell, CalendarDots, CaretLeft, CaretRight, Check, CheckCircle, Clock, Eye, EyeSlash, MapPin, Plus,
-  Star, TennisBall, Trophy, User, UsersThree, X, XCircle, HandWaving, Lock, Buildings, Image as ImageIcon, MagnifyingGlass, Fire, House, ArrowUpRight, ArrowDownRight, Warning, UserPlus,
+  Star, TennisBall, Trophy, User, UsersThree, X, XCircle, HandWaving, Lock, Buildings, Image as ImageIcon, MagnifyingGlass, Fire, House, ArrowUpRight, ArrowDownRight, Warning, UserPlus, Pause, Play,
 } from "@phosphor-icons/react";

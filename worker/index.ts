@@ -10,7 +10,7 @@ const api = new Hono<AppEnv>().basePath("/api");
 api.onError((err, c) => {
   if (err instanceof HttpError) return c.json({ error: err.message }, err.status as any);
   console.error(err);
-  return c.json({ error: "Something went wrong. Please try again." }, 500);
+  return c.json({ error: "30-All hit a problem on our side. Try again in a moment." }, 500);
 });
 
 // Basic CSRF protection: state-changing requests must come from our own site.

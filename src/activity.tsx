@@ -3,7 +3,7 @@ import { celebrated, confetti } from "./confetti";
 import { addDaysISO, lagosToday } from "../shared/rules";
 import { mondayOf, weekdayISO, weekStreak } from "../shared/streak";
 import { X } from "./icons";
-import { usePresence } from "./ui";
+import { useDialogFocus, usePresence } from "./ui";
 
 /**
  * Play tracker. Each square is a day; its shade is how many confirmed matches were played that day.
@@ -72,8 +72,8 @@ export function ActivityCard({ a, mine, uid }: { a: Activity; mine: boolean; uid
   return (
     <>
       <div className="h2 ac-title">Activity</div>
-      <button type="button" ref={card} className="card ac-card" onClick={() => setOpen(true)}
-        aria-label={`Activity: ${recent} matches in the last ${weeks === 1 ? "week" : `${weeks} weeks`}, ${s.current} week streak. Open full history`}>
+      <button type="button" ref={card} className="card ac-card" onClick={() => setOpen(true)}>
+        <span className="sr-only">{recent} {recent === 1 ? "match" : "matches"} in the last {weeks === 1 ? "week" : `${weeks} weeks`}. </span>
         <div className="ac-grid small" aria-hidden="true">
           {WD.map((d, i) => <span key={i} className="ac-wd">{d}</span>)}
           {rows.flat().map((iso) => <Cell key={iso} iso={iso} n={a.days[iso] ?? 0} today={today} />)}
@@ -83,6 +83,7 @@ export function ActivityCard({ a, mine, uid }: { a: Activity; mine: boolean; uid
         ) : (
           <div className="ac-streak"><b>{s.current}</b><span>week streak</span>{milestone > 0 && <em className="ac-ms">{milestone} weeks in a row. Keep it going.</em>}</div>
         )}
+        <span className="sr-only">. Open full history</span>
       </button>
       {open && <ActivitySheet a={a} onClose={() => setOpen(false)} />}
     </>
@@ -92,6 +93,7 @@ export function ActivityCard({ a, mine, uid }: { a: Activity; mine: boolean; uid
 /** Full history: every month back to when the player joined, newest month first. */
 function ActivitySheet({ a, onClose }: { a: Activity; onClose: () => void }) {
   const { state, close } = usePresence(onClose, 280);
+  const dref = useDialogFocus();
   const [picked, setPicked] = useState<string | null>(null);
   const today = lagosToday();
   const s = useMemo(() => streaks(a, today), [a, today]);
@@ -112,7 +114,7 @@ function ActivitySheet({ a, onClose }: { a: Activity; onClose: () => void }) {
 
   return (
     <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="sheet ac-sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Activity">
+      <div ref={dref} className="sheet ac-sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Activity">
         <div className="sheet-head"><h3>Activity</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
         <div className="ac-stats">
           <div><b>{s.current}</b><span>week streak</span></div>

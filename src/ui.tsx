@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { avatarSVG } from "../shared/avatars";
 import { FORMATS } from "../shared/rules";
 import { api, type Match, type Me, type PublicUser } from "./api";
@@ -44,13 +44,19 @@ export function UiProvider({ children }: { children: ReactNode }) {
 
 /* ---------- layout ---------- */
 
+let firstView = true;
+/** The screen's heading. Also names the browser tab, and after an in-app navigation takes focus so screen readers announce the new screen. */
 export function TopBar({ title, back, right, dark }: { title: ReactNode; back?: string | (() => void); right?: ReactNode; dark?: boolean }) {
   const nav = useNavigate();
+  const { pathname } = useLocation();
+  const h1 = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { const t = h1.current?.textContent?.trim(); document.title = t ? `${t} · 30-All` : "30-All"; });
+  useEffect(() => { if (firstView) { firstView = false; return; } h1.current?.focus({ preventScroll: true }); }, [pathname]);
   return (
     <div className={"top" + (dark ? " admintop" : "")}>
       {back ? <button className="back" aria-label="Back" onClick={() => (typeof back === "string" ? nav(back) : back())}><CaretLeft size={22} weight="bold" /></button>
         : <img src={dark ? "/logo-white.png" : "/logo-black.png"} alt="30-All" />}
-      <h1>{title}</h1>
+      <h1 ref={h1} tabIndex={-1}>{title}</h1>
       {right}
     </div>
   );
@@ -83,8 +89,8 @@ export function BottomNav({ pending = 0 }: { pending?: number }) {
 
 export function Avatar({ u, size = 40 }: { u: Pick<PublicUser, "avatar" | "photoUrl"> | null | undefined; size?: number }) {
   return u?.photoUrl
-    ? <span className="av" style={{ width: size, height: size }}><img src={u.photoUrl} alt="" /></span>
-    : <span className="av" style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: avatarSVG(u?.avatar ?? 0) }} />;
+    ? <span className="av" aria-hidden="true" style={{ width: size, height: size }}><img src={u.photoUrl} alt="" /></span>
+    : <span className="av" aria-hidden="true" style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: avatarSVG(u?.avatar ?? 0) }} />;
 }
 
 export const fullName = (u?: { first: string; last: string } | null) => (u ? `${u.first} ${u.last}` : "");
@@ -106,7 +112,7 @@ function TeamSide({ team, won }: { team: PublicUser[]; won: boolean }) {
   return (
     <div className={"sc-team" + (won ? " won" : " lost")}>
       <div className={"sc-avs" + (ps.length > 1 ? " duo" : "")}>
-        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} aria-label={fullName(p)}><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
+        {ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} tabIndex={-1} aria-hidden="true"><Avatar u={p} size={ps.length > 1 ? 56 : 68} /></Link>)}
       </div>
       <div className="sc-names">{ps.map((p) => <Link key={p.id} to={`/players/${p.id}`} title={fullName(p)}><span className="fn">{p.first}</span><span className="ln">{p.last.charAt(0)}.</span></Link>)}</div>
     </div>
@@ -233,6 +239,40 @@ export function useThemeColor(color: string) {
  * Enter/exit for overlays (sheets, dialogs). Renders with data-state="enter", flips to "open" on the next frame
  * so CSS transitions run, and on close plays the exit before unmounting. CSS owns the motion.
  */
+const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+/**
+ * For every sheet and dialog: moves focus inside on open, keeps Tab inside the topmost one,
+ * and hands focus back to whatever opened it on close.
+ */
+export function useDialogFocus<T extends HTMLElement = HTMLDivElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const prev = document.activeElement as HTMLElement | null;
+    if (!el.contains(document.activeElement)) { el.tabIndex = -1; el.focus({ preventScroll: true }); }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const open = document.querySelectorAll('[aria-modal="true"]');
+      if (open[open.length - 1] !== el) return;
+      const f = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.getClientRects().length > 0);
+      if (!f.length) { e.preventDefault(); return; }
+      const first = f[0], last = f[f.length - 1], a = document.activeElement;
+      if (!el.contains(a)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && (a === first || a === el)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (prev && prev.isConnected) { prev.focus({ preventScroll: true }); return; }
+      // the opener is gone (e.g. replaced by the picked player): fall back to the dialog underneath
+      const open = [...document.querySelectorAll<HTMLElement>('[aria-modal="true"]')].filter((d) => d !== el);
+      open[open.length - 1]?.focus({ preventScroll: true });
+    };
+  }, []);
+  return ref;
+}
+
 export function usePresence(onClose: () => void, exitMs = 240) {
   const [state, setState] = useState<"enter" | "open" | "exit">("enter");
   const closing = useRef(false);
@@ -252,14 +292,15 @@ export function usePresence(onClose: () => void, exitMs = 240) {
 
 function ConfirmDialog({ opts, onDone }: { opts: DialogOpts; onDone: () => void }) {
   const { state, close } = usePresence(onDone, 160);
+  const ref = useDialogFocus(), tid = useId();
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
   }, [close]);
   return (
     <div className="dialog-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="dialog" role="dialog" aria-modal="true" data-state={state}>
-        <h3>{opts.title}</h3>
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby={tid} ref={ref} data-state={state}>
+        <h3 id={tid}>{opts.title}</h3>
         <div style={{ color: "var(--ink2)", marginBottom: 16 }}>{opts.body}</div>
         <div className="row">
           <button className="btn ghost" onClick={() => close()}>Cancel</button>

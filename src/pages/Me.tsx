@@ -60,13 +60,15 @@ export function Inbox() {
               <div className="card" style={{ padding: "0 14px" }}>
                 {items.map((n) => {
                   const k = kindOf(n.text.replace(/\*\*/g, ""));
-                  return (
-                    <div key={n.id} data-nid={n.id} className={"notif" + (n.readAt ? "" : " unread")} style={n.matchId ? { cursor: "pointer" } : undefined} onClick={() => n.matchId && nav("/matches")}>
+                  const inner = <>
                       <span className={"nicon " + k.tone} aria-hidden="true">{k.icon}</span>
-                      <div className="nbody"><div className="t">{richText(n.text)}</div><div className="tm">{ago(n.at)}</div></div>
-                      {!n.readAt && <span className="dotu" aria-label="Unread" />}
-                    </div>
-                  );
+                      <span className="nbody">{!n.readAt && <span className="sr-only">Unread: </span>}<span className="t">{richText(n.text)}</span><span className="tm">{ago(n.at)}</span></span>
+                      {!n.readAt && <span className="dotu" aria-hidden="true" />}
+                    </>;
+                  const cls = "notif" + (n.readAt ? "" : " unread");
+                  return n.matchId
+                    ? <button type="button" key={n.id} data-nid={n.id} className={cls + " tap"} onClick={() => nav("/matches")}>{inner}</button>
+                    : <div key={n.id} data-nid={n.id} className={cls}>{inner}</div>;
                 })}
               </div>
             </section>
@@ -103,7 +105,7 @@ function FinishProfile({ me, played }: { me: Me; played: number }) {
   return (
     <section className="card finish" aria-label="Finish your profile">
       <h3>Finish your profile</h3>
-      <div className="finish-bar" role="progressbar" aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done}><span style={{ width: `${(done / items.length) * 100}%` }} /></div>
+      <div className="finish-bar" role="progressbar" aria-label="Profile progress" aria-valuetext={`${done} of ${items.length} done`} aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={done}><span style={{ width: `${(done / items.length) * 100}%` }} /></div>
       <p className="hint" style={{ margin: "4px 0 6px" }}>{done} of {items.length} done</p>
       {items.map(([t, sub, ok, to]) => (
         <div key={t} className={"finish-row" + (ok ? " ok" : "")}>
@@ -167,12 +169,12 @@ export function EditProfile() {
         <div className="card"><AvatarPicker d={d} set={set} /></div>
         <div className="card">
           <div className="row">
-            <div><label className="f" style={{ marginTop: 0 }}>First name</label><input className="inp" value={d.first} onChange={(e) => set({ first: e.target.value })} /></div>
-            <div><label className="f" style={{ marginTop: 0 }}>Last name</label><input className="inp" value={d.last} onChange={(e) => set({ last: e.target.value })} /></div>
+            <div><label className="f" style={{ marginTop: 0 }} htmlFor="f-me-first-name">First name</label><input id="f-me-first-name" className="inp" value={d.first} onChange={(e) => set({ first: e.target.value })} /></div>
+            <div><label className="f" style={{ marginTop: 0 }} htmlFor="f-me-last-name">Last name</label><input id="f-me-last-name" className="inp" value={d.last} onChange={(e) => set({ last: e.target.value })} /></div>
           </div>
           <div className="hint">Your player ID ({me.pid}) stays the same.</div>
-          <label className="f">Email</label>
-          <input className="inp" value={me.email} disabled />
+          <label className="f" htmlFor="f-me-email">Email</label>
+          <input id="f-me-email" className="inp" value={me.email} disabled />
           <div className="hint">Email can't be changed yet. Ask an admin if you need to.</div>
           <AboutFields d={d} set={set} dobLocked />
         </div>
