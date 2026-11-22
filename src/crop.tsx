@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { usePresence } from "./ui";
+import { useDialogFocus, usePresence } from "./ui";
 
 const VIEW = 260; // size of the square crop area on screen (the circle sits inside it)
 const OUT = 640; // saved photo is OUT x OUT pixels
@@ -19,6 +19,7 @@ export function PhotoCropper({ file, onCancel, onCrop }: { file: File; onCancel:
   const pinch = useRef<{ d: number; z: number } | null>(null);
   const done = useRef<(() => void) | null>(null);
   const { state, close } = usePresence(() => done.current?.(), 200);
+  const dref = useDialogFocus();
 
   useEffect(() => {
     const url = URL.createObjectURL(file);
@@ -87,7 +88,7 @@ export function PhotoCropper({ file, onCancel, onCrop }: { file: File; onCancel:
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, sx, sy, size, size, 0, 0, OUT, OUT);
     c.toBlob((b) => {
-      if (!b) return setErr("Something went wrong saving that photo. Please try again.");
+      if (!b) return setErr("Unable to save that photo. Try again.");
       const f = new File([b], "photo.jpg", { type: "image/jpeg" });
       done.current = () => onCrop(f); close();
     }, "image/jpeg", 0.9);
@@ -95,7 +96,7 @@ export function PhotoCropper({ file, onCancel, onCrop }: { file: File; onCancel:
 
   return (
     <div className="dialog-bg" data-state={state}>
-      <div className="dialog cropper" role="dialog" aria-modal="true" aria-label="Position your photo" data-state={state}>
+      <div ref={dref} className="dialog cropper" role="dialog" aria-modal="true" aria-label="Position your photo" data-state={state}>
         <h3>Position your photo</h3>
         <p className="small" style={{ margin: "0 0 14px" }}>Drag to move. Pinch or use the slider to zoom.</p>
         <div className="crop-area" style={{ width: VIEW, height: VIEW }}

@@ -95,9 +95,10 @@ export function Done() {
         <div className="done-av"><Avatar u={me} size={100} /></div>
         <h2 className="done-in">You're in, {me.first}!</h2>
         <p className="done-in">Your player ID</p>
-        <div className="idtag idroll" aria-label={me.pid} style={{ fontSize: 22, padding: "8px 16px", background: "#111" }}>
+        <div className="idtag idroll" style={{ fontSize: 22, padding: "8px 16px", background: "#111" }}>
           {/* each character rolls up like a scoreboard digit; gaps are uneven on purpose */}
           {me.pid.split("").map((ch, i) => <span key={i} aria-hidden="true" style={{ animationDelay: `${260 + [0, 45, 110, 150, 205, 240, 290, 320, 360, 395][i % 10]}ms` }}>{ch}</span>)}
+          <span className="sr-only">{me.pid}</span>
         </div>
         {mates.length > 0 && (
           <div className="mates done-in late">

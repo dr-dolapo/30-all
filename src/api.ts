@@ -35,7 +35,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   try { res = await fetch("/api" + path, init); }
   catch { throw new ApiError(0, "Can't reach 30-All. Check your connection."); }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error || "Something went wrong", data);
+  if (!res.ok) throw new ApiError(res.status, data.error || "That didn't go through. Try again in a moment.", data);
   return data as T;
 }
 

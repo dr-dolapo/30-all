@@ -41,9 +41,9 @@ export function heightCm(d: Draft): number | null {
 
 type Set = (patch: Partial<Draft>) => void;
 
-function Seg({ value, options, onChange, labels }: { value: string; options: readonly string[]; onChange: (v: string) => void; labels?: string[] }) {
+function Seg({ value, options, onChange, labels, labelledBy }: { value: string; options: readonly string[]; onChange: (v: string) => void; labels?: string[]; labelledBy?: string }) {
   return (
-    <div className="seg" role="radiogroup">
+    <div className="seg" role="radiogroup" aria-labelledby={labelledBy}>
       {options.map((o, i) => <button type="button" key={o} role="radio" aria-checked={value === o} className={value === o ? "on" : ""} onClick={() => onChange(o)}>{labels?.[i] ?? o}</button>)}
     </div>
   );
@@ -55,31 +55,31 @@ const maxDob = () => { const d = new Date(); d.setFullYear(d.getFullYear() - 18)
 export function AboutFields({ d, set, dobLocked, signup }: { d: Draft; set: Set; dobLocked?: boolean; signup?: boolean }) {
   return (
     <>
-      <label className="f">Gender <span className="req">*</span></label>
-      <Seg value={d.gender} options={GENDERS} onChange={(v) => set({ gender: v })} />
-      <label className="f">Date of birth <span className="req">*</span></label>
-      <input className="inp" type="date" max={maxDob()} value={d.dob} disabled={dobLocked} onChange={(e) => set({ dob: e.target.value })} />
+      <div className="f" id="f-gender">Gender <span className="req">*</span></div>
+      <Seg labelledBy="f-gender" value={d.gender} options={GENDERS} onChange={(v) => set({ gender: v })} />
+      <label className="f" htmlFor="f-forms-date-of-birth">Date of birth <span className="req">*</span></label>
+      <input id="f-forms-date-of-birth" className="inp" type="date" max={maxDob()} value={d.dob} disabled={dobLocked} onChange={(e) => set({ dob: e.target.value })} />
       <div className="hint">{dobLocked ? "Only an admin can change this." : signup ? "You must be 18 or older." : "You must be 18 or older. Used later for age-group events."}</div>
-      <label className="f">Nationality{!signup && <> <span className="req">*</span></>}</label>
-      <select className="inp" value={d.nationality} onChange={(e) => set({ nationality: e.target.value })}>
+      <label className="f" htmlFor="f-forms-nationality">Nationality{!signup && <> <span className="req">*</span></>}</label>
+      <select id="f-forms-nationality" className="inp" value={d.nationality} onChange={(e) => set({ nationality: e.target.value })}>
         {NATIONALITIES.map((n) => <option key={n}>{n}</option>)}
       </select>
       {signup ? <div className="onb-note">WhatsApp, height, your game and racquets are optional. Add them any time under <b>Finish your profile</b>.</div> : <>
-      <label className="f">WhatsApp number</label>
+      <label className="f" htmlFor="f-wa">WhatsApp number</label>
       <div className="row">
-        <select className="inp" style={{ flex: "0 0 96px" }} value={d.waCode} onChange={(e) => set({ waCode: e.target.value })}>
+        <select className="inp" aria-label="Country code" style={{ flex: "0 0 96px" }} value={d.waCode} onChange={(e) => set({ waCode: e.target.value })}>
           {WHATSAPP_CODES.map((c) => <option key={c}>{c}</option>)}
         </select>
-        <input className="inp" inputMode="tel" placeholder="803 000 0000" value={d.wa} onChange={(e) => set({ wa: e.target.value })} />
+        <input className="inp" id="f-wa" type="tel" autoComplete="tel-national" inputMode="tel" placeholder="803 000 0000" value={d.wa} onChange={(e) => set({ wa: e.target.value })} />
       </div>
       <div className="hint">Only admins can see this.</div>
-      <label className="f">Height</label>
-      <div style={{ marginBottom: 8 }}><Seg value={d.heightUnit} options={["metric", "imperial"]} labels={["Metric (cm)", "Imperial (ft/in)"]} onChange={(v) => set({ heightUnit: v as any })} /></div>
+      <div className="f" id="f-height">Height</div>
+      <div style={{ marginBottom: 8 }}><Seg labelledBy="f-height" value={d.heightUnit} options={["metric", "imperial"]} labels={["Metric (cm)", "Imperial (ft/in)"]} onChange={(v) => set({ heightUnit: v as any })} /></div>
       {d.heightUnit === "metric"
-        ? <input className="inp" inputMode="numeric" placeholder="e.g. 178" value={d.cm} onChange={(e) => set({ cm: e.target.value.replace(/\D/g, "") })} />
+        ? <input className="inp" aria-label="Height in centimetres" inputMode="numeric" placeholder="e.g. 178" value={d.cm} onChange={(e) => set({ cm: e.target.value.replace(/\D/g, "") })} />
         : <div className="row">
-            <select className="inp" value={d.ft} onChange={(e) => set({ ft: e.target.value })}><option value="">ft</option>{[4, 5, 6, 7].map((f) => <option key={f}>{f}</option>)}</select>
-            <select className="inp" value={d.inch} onChange={(e) => set({ inch: e.target.value })}><option value="">in</option>{Array.from({ length: 12 }, (_, i) => <option key={i}>{i}</option>)}</select>
+            <select className="inp" aria-label="Feet" value={d.ft} onChange={(e) => set({ ft: e.target.value })}><option value="">ft</option>{[4, 5, 6, 7].map((f) => <option key={f}>{f}</option>)}</select>
+            <select className="inp" aria-label="Inches" value={d.inch} onChange={(e) => set({ inch: e.target.value })}><option value="">in</option>{Array.from({ length: 12 }, (_, i) => <option key={i}>{i}</option>)}</select>
           </div>}
       <div className="hint">Hidden from other players.</div>
       </>}
@@ -90,12 +90,12 @@ export function AboutFields({ d, set, dobLocked, signup }: { d: Draft; set: Set;
 export function StyleFields({ d, set }: { d: Draft; set: Set }) {
   return (
     <>
-      <label className="f">Handedness <span className="req">*</span></label>
-      <Seg value={d.hand} options={HANDS} onChange={(v) => set({ hand: v })} />
-      <label className="f">Backhand</label>
-      <Seg value={d.backhand} options={BACKHANDS} onChange={(v) => set({ backhand: v })} />
-      <label className="f">Favourite shot</label>
-      <div className="chips">
+      <div className="f" id="f-hand">Handedness <span className="req">*</span></div>
+      <Seg labelledBy="f-hand" value={d.hand} options={HANDS} onChange={(v) => set({ hand: v })} />
+      <div className="f" id="f-backhand">Backhand</div>
+      <Seg labelledBy="f-backhand" value={d.backhand} options={BACKHANDS} onChange={(v) => set({ backhand: v })} />
+      <div className="f" id="f-shot">Favourite shot</div>
+      <div className="chips" role="group" aria-labelledby="f-shot">
         {SHOTS.map((s) => <button type="button" key={s} className={"chip" + (d.shot === s ? " on" : "")} onClick={() => set({ shot: d.shot === s ? "" : s })}>{s}</button>)}
       </div>
     </>
@@ -158,8 +158,8 @@ export function CourtPicker({ d, set, homeOnly }: { d: Draft; set: Set; homeOnly
           <>
             <div style={{ fontWeight: 600 }}>Add a court in {d.state}</div>
             <p className="hint">The admins will review it. It shows as <b>Pending</b> on your profile until it's approved.</p>
-            <label className="f">Court name</label><input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
-            <label className="f">Approximate address</label><input className="inp" value={addr} onChange={(e) => setAddr(e.target.value)} />
+            <label className="f" htmlFor="f-forms-court-name">Court name</label><input id="f-forms-court-name" className="inp" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="f" htmlFor="f-forms-approximate-address">Approximate address</label><input id="f-forms-approximate-address" className="inp" value={addr} onChange={(e) => setAddr(e.target.value)} />
             <ErrorText msg={err} />
             <div className="row" style={{ marginTop: 10 }}>
               <button type="button" className="btn sm ghost" onClick={() => setAdding(false)}>Cancel</button>
@@ -173,11 +173,11 @@ export function CourtPicker({ d, set, homeOnly }: { d: Draft; set: Set; homeOnly
 
   return (
     <>
-      <label className="f">Country</label>
-      <select className="inp" disabled><option>Nigeria</option></select>
+      <label className="f" htmlFor="f-forms-country">Country</label>
+      <select id="f-forms-country" className="inp" disabled><option>Nigeria</option></select>
       <div className="hint">Only Nigeria is available for now.</div>
-      <label className="f">State</label>
-      <select className="inp" value={d.state} onChange={(e) => set({ state: e.target.value })}>{STATES.map((s) => <option key={s}>{s}</option>)}</select>
+      <label className="f" htmlFor="f-forms-state">State</label>
+      <select id="f-forms-state" className="inp" value={d.state} onChange={(e) => set({ state: e.target.value })}>{STATES.map((s) => <option key={s}>{s}</option>)}</select>
       {elsewhere.length > 0 && <div className="hint">Also selected: {elsewhere.map((id) => d.courtNames[id]?.name ?? "a court").join(", ")}</div>}
       <div className="card" style={{ marginTop: 12, padding: "6px 14px" }}>
         {list === null ? <div className="empty">Loading courts…</div> : list.length === 0 ? <div className="empty">No approved courts in {d.state} yet. Add yours below.</div> :
@@ -194,8 +194,8 @@ export function CourtPicker({ d, set, homeOnly }: { d: Draft; set: Set; homeOnly
           <>
             <div style={{ fontWeight: 600 }}>Add a court in {d.state}</div>
             <p className="hint">The admins will review it. It shows as <b>Pending</b> on your profile until it's approved.</p>
-            <label className="f">Court name</label><input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
-            <label className="f">Approximate address</label><input className="inp" value={addr} onChange={(e) => setAddr(e.target.value)} />
+            <label className="f" htmlFor="f-forms-court-name-2">Court name</label><input id="f-forms-court-name-2" className="inp" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="f" htmlFor="f-forms-approximate-address-2">Approximate address</label><input id="f-forms-approximate-address-2" className="inp" value={addr} onChange={(e) => setAddr(e.target.value)} />
             <ErrorText msg={err} />
             <div className="row" style={{ marginTop: 10 }}>
               <button type="button" className="btn sm ghost" onClick={() => setAdding(false)}>Cancel</button>
@@ -225,7 +225,7 @@ export function RacquetEditor({ d, set }: { d: Draft; set: Set }) {
             <label className="radio"><input type="radio" name="primary" checked={r.primary} onChange={() => set({ racquets: d.racquets.map((x, k) => ({ ...x, primary: k === i })) })} style={{ accentColor: "var(--o)" }} /> Primary</label>
             {d.racquets.length > 1 && <button type="button" className="small" onClick={() => remove(i)}>Remove</button>}
           </div>
-          <select className="inp" style={{ marginBottom: 8 }} value={r.custom ? "__other" : r.brand}
+          <select className="inp" aria-label="Racquet brand" style={{ marginBottom: 8 }} value={r.custom ? "__other" : r.brand}
             onChange={(e) => e.target.value === "__other" ? upd(i, { custom: true, brand: "", model: "" }) : upd(i, { custom: false, brand: e.target.value, model: "" })}>
             <option value="">Brand…</option>
             {Object.keys(models).map((b) => <option key={b}>{b}</option>)}
@@ -234,13 +234,13 @@ export function RacquetEditor({ d, set }: { d: Draft; set: Set }) {
           {r.custom ? (
             <>
               <div className="row">
-                <input className="inp" placeholder="Brand" value={r.brand} onChange={(e) => upd(i, { brand: e.target.value })} />
-                <input className="inp" placeholder="Model" value={r.model} onChange={(e) => upd(i, { model: e.target.value })} />
+                <input className="inp" aria-label="Brand" placeholder="e.g. Diadem" value={r.brand} onChange={(e) => upd(i, { brand: e.target.value })} />
+                <input className="inp" aria-label="Model" placeholder="e.g. Elevate 98" value={r.model} onChange={(e) => upd(i, { model: e.target.value })} />
               </div>
               <div className="hint">Racquets you type in only appear on your own profile, not in the list for others.</div>
             </>
           ) : r.brand ? (
-            <select className="inp" value={r.model} onChange={(e) => upd(i, { model: e.target.value })}>
+            <select className="inp" aria-label="Racquet model" value={r.model} onChange={(e) => upd(i, { model: e.target.value })}>
               <option value="">Model…</option>
               {(models[r.brand] ?? [r.model]).map((m) => <option key={m}>{m}</option>)}
             </select>
@@ -286,7 +286,7 @@ export function AvatarPicker({ d, set, compact }: { d: Draft; set: Set; compact?
       <div className="h2" style={{ marginTop: 18 }}>{compact ? "Or keep an avatar" : "Or choose an avatar"}</div>
       <div className="avgrid">
         {(all ? AVATAR_NAMES.map((_, i) => i) : [d.avatar, ...[0, 2, 7, 11, 14].filter((i) => i !== d.avatar)].slice(0, 4)).map((i) => (
-          <button type="button" key={i} title={AVATAR_NAMES[i]} aria-label={AVATAR_NAMES[i]} className={d.avatar === i && !d.photoUrl ? "on" : ""} onClick={() => chooseAvatar(i)} dangerouslySetInnerHTML={{ __html: avatarSVG(i) }} />
+          <button type="button" key={i} title={AVATAR_NAMES[i]} aria-pressed={d.avatar === i && !d.photoUrl} className={d.avatar === i && !d.photoUrl ? "on" : ""} onClick={() => chooseAvatar(i)}><span className="avsvg" aria-hidden="true" dangerouslySetInnerHTML={{ __html: avatarSVG(i) }} /><span className="sr-only">{AVATAR_NAMES[i]}</span></button>
         ))}
         {!all && <button type="button" className="av-more" onClick={() => setAll(true)}>More</button>}
       </div>

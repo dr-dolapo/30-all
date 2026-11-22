@@ -67,9 +67,9 @@ function Courts() {
         <div className="card" key={c.id}>
           {edit?.id === c.id ? (
             <>
-              <label className="f" style={{ marginTop: 0 }}>Name</label><input className="inp" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
-              <label className="f">Area</label><input className="inp" value={edit.area ?? ""} onChange={(e) => setEdit({ ...edit, area: e.target.value })} />
-              <label className="f">Address</label><input className="inp" value={edit.address ?? ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} />
+              <label className="f" style={{ marginTop: 0 }} htmlFor="f-admin-name">Name</label><input id="f-admin-name" className="inp" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+              <label className="f" htmlFor="f-admin-area">Area</label><input id="f-admin-area" className="inp" value={edit.area ?? ""} onChange={(e) => setEdit({ ...edit, area: e.target.value })} />
+              <label className="f" htmlFor="f-admin-address">Address</label><input id="f-admin-address" className="inp" value={edit.address ?? ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} />
               <div className="acts"><button className="btn sm ghost" onClick={() => setEdit(null)}>Cancel</button><button className="btn sm dark" onClick={saveEdit}>Save</button></div>
             </>
           ) : (
@@ -82,7 +82,7 @@ function Courts() {
                 <button className="btn sm ok" onClick={() => act(c, "approve")}>Approve</button>
               </div>
               <div className="row" style={{ marginTop: 8 }}>
-                <select className="inp" value={merge[c.id] ?? ""} onChange={(e) => setMerge({ ...merge, [c.id]: e.target.value })}>
+                <select className="inp" aria-label={`Merge ${c.name} into an existing court`} value={merge[c.id] ?? ""} onChange={(e) => setMerge({ ...merge, [c.id]: e.target.value })}>
                   <option value="">Same as an existing court…</option>
                   {approved.filter((a) => a.state === c.state).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
@@ -95,9 +95,9 @@ function Courts() {
       </div>
       <div className="h2">Add an approved court</div>
       <div className="card">
-        <div className="row"><input className="inp" placeholder="Court name" value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} />
-          <select className="inp" style={{ flex: "0 0 120px" }} value={add.state} onChange={(e) => setAdd({ ...add, state: e.target.value })}>{STATES.map((s) => <option key={s}>{s}</option>)}</select></div>
-        <div className="row" style={{ marginTop: 8 }}><input className="inp" placeholder="Area" value={add.area} onChange={(e) => setAdd({ ...add, area: e.target.value })} /><input className="inp" placeholder="Address" value={add.address} onChange={(e) => setAdd({ ...add, address: e.target.value })} /></div>
+        <div className="row"><input className="inp" aria-label="Court name" placeholder="Court name" value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} />
+          <select className="inp" aria-label="State" style={{ flex: "0 0 120px" }} value={add.state} onChange={(e) => setAdd({ ...add, state: e.target.value })}>{STATES.map((s) => <option key={s}>{s}</option>)}</select></div>
+        <div className="row" style={{ marginTop: 8 }}><input className="inp" aria-label="Area" placeholder="Area" value={add.area} onChange={(e) => setAdd({ ...add, area: e.target.value })} /><input className="inp" placeholder="Address" value={add.address} onChange={(e) => setAdd({ ...add, address: e.target.value })} /></div>
         <ErrorText msg={err} />
         <div style={{ marginTop: 8 }}><button className="btn sm dark" onClick={addCourt}>Add court</button></div>
       </div>
@@ -164,7 +164,7 @@ function Users() {
   const shown = list.filter((u) => !q || `${u.first} ${u.last} ${u.pid} ${u.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
-      <input className="inp" placeholder="Search players" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input className="inp" type="search" aria-label="Search players" placeholder="Search players" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="h2" style={{ marginTop: 14 }}>Players ({shown.length})</div>
       <div className="cardgrid">
       {shown.map((u) => (
@@ -263,7 +263,7 @@ export function AdminUserPage() {
               <dd>
                 {editDob !== null ? (
                   <span className="row" style={{ gap: 6 }}>
-                    <input type="date" className="inp" style={{ padding: "5px 8px" }} value={editDob} onChange={(e) => setEditDob(e.target.value)} />
+                    <input type="date" className="inp" aria-label="Date of birth" style={{ padding: "5px 8px" }} value={editDob} onChange={(e) => setEditDob(e.target.value)} />
                     <button className="btn sm dark" style={{ flex: "0 0 auto" }} onClick={saveDob}>Save</button>
                     <button className="btn sm ghost" style={{ flex: "0 0 auto" }} onClick={() => setEditDob(null)}>Cancel</button>
                   </span>

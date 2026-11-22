@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { ErrorText, StepBar, TopBar, useSession, useThemeColor, useUi } from "../ui";
+import { Pause, Play } from "../icons";
 
 /** Remember who invited this player (?ref=<player ID> on an invite link) until they sign up. */
 function useInviteRef() {
@@ -59,6 +60,8 @@ export function Welcome() {
   const [stats, setStats] = useState<{ players: number; courts: number } | null>(null);
   const stage = useRef<HTMLDivElement>(null), create = useRef<HTMLButtonElement>(null);
   useThemeColor("#111111");
+  const [paused, setPaused] = useState(false);
+  useEffect(() => { document.title = "30-All"; }, []);
   useInviteRef();
   useEffect(() => { api.get<{ players: number; courts: number }>("/public/stats").then(setStats).catch(() => {}); }, []);
   return (
@@ -68,8 +71,12 @@ export function Welcome() {
         <h1>Your tennis.<br />Your scores.<br />Your crew.</h1>
       </div>
       {/* stadium LED band: the three steps, on a loop */}
-      <div className="land-ticker" aria-label="Play a match. Log the score. They confirm it.">
+      <div className={"land-ticker" + (paused ? " paused" : "")}>
+        <p className="sr-only">Play a match. Log the score. They confirm it.</p>
         <div aria-hidden="true"><span>{TICKER.repeat(4)}</span><span>{TICKER.repeat(4)}</span></div>
+        <button type="button" className="land-pause" aria-label={paused ? "Play animation" : "Pause animation"} onClick={() => setPaused(!paused)}>
+          {paused ? <Play size={14} weight="fill" /> : <Pause size={14} weight="fill" />}
+        </button>
       </div>
       <div className="land-bottom">
         <p className="land-sub">Your scores, settled and on the leaderboard.</p>
@@ -106,10 +113,10 @@ export function Login() {
         <form onSubmit={submit}>
           <div className="stitle">Welcome back</div>
           <p className="ssub">Log in to enter scores and see your record.</p>
-          <label className="f">Email</label>
-          <input className="inp" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <label className="f">Password</label>
-          <input className="inp" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <label className="f" htmlFor="f-auth-email">Email</label>
+          <input id="f-auth-email" className="inp" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <label className="f" htmlFor="f-auth-password">Password</label>
+          <input id="f-auth-password" className="inp" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           <ErrorText msg={err} />
           <div style={{ marginTop: 16 }}><button className="btn" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button></div>
           <p style={{ textAlign: "center", marginTop: 14 }}><Link className="link" to="/forgot">Forgot password?</Link></p>
@@ -142,8 +149,8 @@ export function Forgot() {
           <form onSubmit={send}>
             <div className="stitle">Reset your password</div>
             <p className="ssub">Enter your email and we'll send you a 6-digit code.</p>
-            <label className="f">Email</label>
-            <input className="inp" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <label className="f" htmlFor="f-auth-email-2">Email</label>
+            <input id="f-auth-email-2" className="inp" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <ErrorText msg={err} />
             <div style={{ marginTop: 14 }}><button className="btn">Send code</button></div>
           </form>
@@ -151,10 +158,10 @@ export function Forgot() {
           <form onSubmit={reset}>
             <div className="stitle">Check your email</div>
             <p className="ssub">If <b>{email}</b> has an account, we've sent it a code. It expires in 10 minutes.</p>
-            <label className="f">Code</label>
-            <input className="inp" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required />
-            <label className="f">New password</label>
-            <input className="inp" type="password" autoComplete="new-password" placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <label className="f" htmlFor="f-auth-code">Code</label>
+            <input id="f-auth-code" className="inp" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required />
+            <label className="f" htmlFor="f-auth-new-password">New password</label>
+            <input id="f-auth-new-password" className="inp" type="password" autoComplete="new-password" placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
             <ErrorText msg={err} />
             <div style={{ marginTop: 14 }}><button className="btn">Set new password</button></div>
           </form>
@@ -186,14 +193,14 @@ export function Signup() {
           <div className="stitle">Let's get you on court</div>
           <p className="ssub">Your friends will find you by this name.</p>
           <div className="row">
-            <div><label className="f">First name <span className="req">*</span></label><input className="inp" autoComplete="given-name" {...field("first")} required /></div>
-            <div><label className="f">Last name <span className="req">*</span></label><input className="inp" autoComplete="family-name" {...field("last")} required /></div>
+            <div><label className="f" htmlFor="f-auth-first-name">First name <span className="req">*</span></label><input id="f-auth-first-name" className="inp" autoComplete="given-name" {...field("first")} required /></div>
+            <div><label className="f" htmlFor="f-auth-last-name">Last name <span className="req">*</span></label><input id="f-auth-last-name" className="inp" autoComplete="family-name" {...field("last")} required /></div>
           </div>
-          <label className="f">Email <span className="req">*</span></label>
-          <input className="inp" type="email" autoComplete="email" {...field("email")} required />
-          <label className="f">Password <span className="req">*</span></label>
+          <label className="f" htmlFor="f-auth-email-3">Email <span className="req">*</span></label>
+          <input id="f-auth-email-3" className="inp" type="email" autoComplete="email" {...field("email")} required />
+          <label className="f" htmlFor="f-auth-password-2">Password <span className="req">*</span></label>
           <div className="pw">
-            <input className="inp" type={show ? "text" : "password"} autoComplete="new-password" placeholder="At least 8 characters" {...field("password")} required minLength={8} />
+            <input id="f-auth-password-2" className="inp" type={show ? "text" : "password"} autoComplete="new-password" placeholder="At least 8 characters" {...field("password")} required minLength={8} />
             <button type="button" className="pw-show" onClick={() => setShow(!show)} aria-pressed={show}>{show ? "Hide" : "Show"}</button>
           </div>
           <ErrorText msg={err} />

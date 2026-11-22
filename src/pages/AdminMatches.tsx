@@ -136,9 +136,9 @@ export function AdminMatches({ courts }: { courts: Array<{ id: string; name: str
       ) : (
         <div className="am-cards">
           {page.items.map((m) => (
-            <div key={m.id} className="am-card" role="link" tabIndex={0} aria-label={`Open match from ${dateText(m.date)}`}
-              onClick={(e) => !(e.target as HTMLElement).closest("a") && open(m)} onKeyDown={(e) => e.key === "Enter" && open(m)}>
+            <div key={m.id} className="am-card" onClick={(e) => !(e.target as HTMLElement).closest("a, button") && open(m)}>
               <ScoreCard m={m} showDate showConfirmed />
+              <button type="button" className="am-open" onClick={() => open(m)}>Match details<span className="sr-only">, {dateText(m.date)}</span></button>
             </div>
           ))}
         </div>
