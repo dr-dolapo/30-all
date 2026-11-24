@@ -891,3 +891,11 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .avsvg{display:block;width:100%;height:100%}
 /* interface review: score-card name links reach the 24px minimum tap height */
 .sc-names a{padding-block:4px}
+/* admin: approved court edit + delete */
+.court-edit{padding:14px 0;border-bottom:1px solid #F0F0F0}
+.court-edit:last-child{border-bottom:0}
+.court-edit .row{align-items:flex-end}
+.court-del{margin-top:18px;padding-top:14px;border-top:1px dashed #E2E2E2}
+.court-del .small{margin:4px 0 8px}
+.court-del optgroup{font-weight:600}
+.pl > .link{padding:8px 4px;flex:none}
