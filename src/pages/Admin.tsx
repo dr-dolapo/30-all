@@ -35,7 +35,7 @@ export function Admin() {
   );
 }
 
-interface AdminCourt { id: string; name: string; state: string; area: string | null; address: string | null; status: string; submitter: string | null; players: number }
+interface AdminCourt { id: string; name: string; state: string; area: string | null; address: string | null; status: string; submitter: string | null; players: number; matches: number }
 
 function Courts() {
   const { toast, confirm } = useUi();
@@ -103,9 +103,75 @@ function Courts() {
       </div>
       <div className="h2">Approved courts ({approved.length})</div>
       <div className="card" style={{ padding: "4px 14px" }}>
-        {approved.map((c) => <div className="pl" key={c.id}><div className="grow"><div className="nm">{c.name}</div><div className="id">{[c.area, c.state].filter(Boolean).join(" · ")} · {c.players} player{c.players === 1 ? "" : "s"}</div></div></div>)}
+        {approved.map((c) => <ApprovedCourt key={c.id} c={c} others={approved.filter((a) => a.id !== c.id)} onChanged={load} />)}
       </div>
     </>
+  );
+}
+
+const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+
+/** One approved court: a row that opens into an edit form, with delete at the bottom. */
+function ApprovedCourt({ c, others, onChanged }: { c: AdminCourt; others: AdminCourt[]; onChanged: () => void }) {
+  const { toast, confirm } = useUi();
+  const [edit, setEdit] = useState<AdminCourt | null>(null);
+  const [into, setInto] = useState(""); const [err, setErr] = useState("");
+  const used = c.players + c.matches > 0;
+  const fid = `court-${c.id}`;
+  const save = async () => {
+    if (!edit) return; setErr("");
+    try { await api.put(`/admin/courts/${c.id}`, edit); toast("Court updated."); setEdit(null); onChanged(); } catch (e: any) { setErr(e.message); }
+  };
+  const del = async () => {
+    if (used && !into) { setErr("Choose a court to move its players and matches to."); return; }
+    try {
+      await api.post(`/admin/courts/${c.id}/delete`, { into: into || undefined });
+      toast(used ? `${c.name} deleted. Its players were moved and notified.` : `${c.name} deleted.`); onChanged();
+    } catch (e: any) { setErr(e.message); }
+  };
+  const target = others.find((o) => o.id === into);
+  const usage = [c.players && plural(c.players, "profile"), c.matches && plural(c.matches, "match", "matches")].filter(Boolean).join(" and ");
+  // same-state courts first, the rest grouped by state
+  const byState = [...new Set([c.state, ...others.map((o) => o.state)])].filter((st) => others.some((o) => o.state === st));
+
+  if (!edit) return (
+    <div className="pl">
+      <div className="grow"><div className="nm">{c.name}</div><div className="id">{[c.area, c.state].filter(Boolean).join(" · ")} · {plural(c.players, "player")} · {plural(c.matches, "match", "matches")}</div></div>
+      <button type="button" className="link small" onClick={() => { setEdit(c); setInto(""); setErr(""); }} aria-label={`Edit ${c.name}`}>Edit</button>
+    </div>
+  );
+  return (
+    <div className="court-edit">
+      <label className="f" style={{ marginTop: 0 }} htmlFor={`${fid}-name`}>Name</label>
+      <input id={`${fid}-name`} className="inp" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+      <div className="row" style={{ marginTop: 0 }}>
+        <div className="grow"><label className="f" htmlFor={`${fid}-area`}>Area</label><input id={`${fid}-area`} className="inp" value={edit.area ?? ""} onChange={(e) => setEdit({ ...edit, area: e.target.value })} /></div>
+        <div style={{ flex: "0 0 130px" }}><label className="f" htmlFor={`${fid}-state`}>State</label>
+          <select id={`${fid}-state`} className="inp" value={edit.state} onChange={(e) => setEdit({ ...edit, state: e.target.value })}>{STATES.map((st) => <option key={st}>{st}</option>)}</select></div>
+      </div>
+      <label className="f" htmlFor={`${fid}-address`}>Address</label>
+      <input id={`${fid}-address`} className="inp" value={edit.address ?? ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} />
+      <ErrorText msg={err} />
+      <div className="acts"><button type="button" className="btn sm ghost" onClick={() => setEdit(null)}>Cancel</button><button type="button" className="btn sm dark" onClick={save}>Save</button></div>
+
+      <div className="court-del">
+        <div className="f" style={{ marginTop: 0 }}>Delete court</div>
+        {used ? <>
+          <p className="small">Used on {usage}. Choose where they move before deleting. Players are told about the change.</p>
+          <label className="sr-only" htmlFor={`${fid}-into`}>Move players and matches to</label>
+          <select id={`${fid}-into`} className="inp" value={into} onChange={(e) => { setInto(e.target.value); setErr(""); }}>
+            <option value="">Move players and matches to…</option>
+            {byState.map((st) => <optgroup key={st} label={st}>{others.filter((o) => o.state === st).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</optgroup>)}
+          </select>
+        </> : <p className="small">No players or matches use this court.</p>}
+        <div style={{ marginTop: 10 }}>
+          <HoldButton label="Hold to delete court" ms={1500} onConfirm={del}
+            onKeyboard={() => used && !into ? setErr("Choose a court to move its players and matches to.") : confirm({
+              title: `Delete ${c.name}?`, body: used ? `Its ${usage} move to ${target?.name}. This can't be undone.` : "This can't be undone.",
+              ok: "Delete", danger: true, onOk: del })} />
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -14,7 +14,8 @@ admin.use("*", requireUser({ admin: true }));
 admin.get("/courts", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT c.*, u.first_name || ' ' || u.last_name AS submitter,
-       (SELECT COUNT(*) FROM user_courts uc WHERE uc.court_id = c.id) AS players
+       (SELECT COUNT(*) FROM user_courts uc WHERE uc.court_id = c.id) AS players,
+       (SELECT COUNT(*) FROM matches m WHERE m.court_id = c.id) AS matches
      FROM courts c LEFT JOIN users u ON u.id = c.submitted_by
      WHERE c.status IN ('pending','approved') ORDER BY c.status = 'pending' DESC, c.state, c.name`,
   ).all();
@@ -31,14 +32,58 @@ admin.post("/courts", async (c) => {
   return c.json({ id });
 });
 
-/** Edit a court's details (e.g. tidy a submitted name before approving). */
+/** Edit a court's details: tidy a submitted court before approving, or correct an approved one. Renames are quiet. */
 admin.put("/courts/:id", async (c) => {
   const b = await c.req.json().catch(() => ({}));
-  const name = str(b.name, 100);
+  const name = str(b.name, 100), state = str(b.state, 40);
   if (!name) throw bad("Court name can't be empty");
-  await c.env.DB.prepare("UPDATE courts SET name = ?, area = ?, address = ? WHERE id = ?")
-    .bind(name, str(b.area, 100) || null, str(b.address, 200) || null, c.req.param("id")).run();
+  const ct = await c.env.DB.prepare("SELECT id, state FROM courts WHERE id = ?").bind(c.req.param("id")).first<{ id: string; state: string }>();
+  if (!ct) throw new HttpError(404, "Court not found");
+  if (state && !STATES.includes(state)) throw bad("Choose a state from the list");
+  await c.env.DB.prepare("UPDATE courts SET name = ?, area = ?, address = ?, state = ? WHERE id = ?")
+    .bind(name, str(b.area, 100) || null, str(b.address, 200) || null, state || ct.state, ct.id).run();
   return c.json({ ok: true });
+});
+
+/**
+ * Moves every profile and match from one court to another. A player keeps one row per court:
+ * if they already list the target, it's kept (and becomes their home court if the old one was).
+ */
+async function moveCourtUsage(env: AppEnv["Bindings"], fromId: string, intoId: string) {
+  const { results: rows } = await env.DB.prepare("SELECT user_id, role, position FROM user_courts WHERE court_id = ?").bind(fromId).all<{ user_id: string; role: string; position: number }>();
+  const stmts: D1PreparedStatement[] = [];
+  for (const r of rows) {
+    const has = await env.DB.prepare("SELECT role FROM user_courts WHERE user_id = ? AND court_id = ?").bind(r.user_id, intoId).first<{ role: string }>();
+    stmts.push(env.DB.prepare("DELETE FROM user_courts WHERE user_id = ? AND court_id = ?").bind(r.user_id, fromId));
+    if (!has) stmts.push(env.DB.prepare("INSERT INTO user_courts (user_id,court_id,role,position) VALUES (?,?,?,?)").bind(r.user_id, intoId, r.role, r.position));
+    else if (r.role === "home" && has.role !== "home") stmts.push(env.DB.prepare("UPDATE user_courts SET role = 'home', position = 0 WHERE user_id = ? AND court_id = ?").bind(r.user_id, intoId));
+  }
+  stmts.push(env.DB.prepare("UPDATE matches SET court_id = ? WHERE court_id = ?").bind(intoId, fromId));
+  return { stmts, userIds: rows.map((r) => r.user_id) };
+}
+
+/** Deletes an approved court. If players or matches use it, they move to another approved court first and those players are told. */
+admin.post("/courts/:id/delete", async (c) => {
+  const ct = await c.env.DB.prepare("SELECT id, name FROM courts WHERE id = ? AND status = 'approved'").bind(c.req.param("id")).first<{ id: string; name: string }>();
+  if (!ct) throw new HttpError(404, "Court not found");
+  const b = await c.req.json().catch(() => ({}));
+  const used = await c.env.DB.prepare(
+    "SELECT (SELECT COUNT(*) FROM user_courts WHERE court_id = ?1) + (SELECT COUNT(*) FROM matches WHERE court_id = ?1) AS n").bind(ct.id).first<{ n: number }>();
+  let into: { id: string; name: string } | null = null;
+  if (used && used.n > 0) {
+    into = await c.env.DB.prepare("SELECT id, name FROM courts WHERE id = ? AND status = 'approved'").bind(str(b.into, 64)).first<{ id: string; name: string }>();
+    if (!into || into.id === ct.id) throw bad("Choose another approved court to move its players and matches to");
+  }
+  const moved = into ? await moveCourtUsage(c.env, ct.id, into.id) : { stmts: [], userIds: [] as string[] };
+  await c.env.DB.batch([
+    ...moved.stmts,
+    // courts that were merged into this one now point at the new court (or nowhere)
+    c.env.DB.prepare("UPDATE courts SET merged_into = ? WHERE merged_into = ?").bind(into?.id ?? null, ct.id),
+    c.env.DB.prepare("DELETE FROM courts WHERE id = ?").bind(ct.id),
+  ]);
+  if (into && moved.userIds.length) await notify(c.env, (p) => c.executionCtx.waitUntil(p), [...new Set(moved.userIds)],
+    `${ct.name} was removed from 30-All. Your profile now shows ${into.name} instead.`, { subject: "Your court changed" });
+  return c.json({ ok: true, moved: moved.userIds.length });
 });
 
 async function pendingCourt(c: any) {
@@ -76,18 +121,10 @@ admin.post("/courts/:id/merge", async (c) => {
   const b = await c.req.json().catch(() => ({}));
   const into = await c.env.DB.prepare("SELECT id, name FROM courts WHERE id = ? AND status = 'approved'").bind(str(b.into, 64)).first<{ id: string; name: string }>();
   if (!into) throw bad("Choose an approved court to merge into");
-  const { results: rows } = await c.env.DB.prepare("SELECT user_id, role, position FROM user_courts WHERE court_id = ?").bind(ct.id).all<{ user_id: string; role: string; position: number }>();
-  const stmts: D1PreparedStatement[] = [];
-  for (const r of rows) {
-    const has = await c.env.DB.prepare("SELECT role FROM user_courts WHERE user_id = ? AND court_id = ?").bind(r.user_id, into.id).first<{ role: string }>();
-    stmts.push(c.env.DB.prepare("DELETE FROM user_courts WHERE user_id = ? AND court_id = ?").bind(r.user_id, ct.id));
-    if (!has) stmts.push(c.env.DB.prepare("INSERT INTO user_courts (user_id,court_id,role,position) VALUES (?,?,?,?)").bind(r.user_id, into.id, r.role, r.position));
-    else if (r.role === "home" && has.role !== "home") stmts.push(c.env.DB.prepare("UPDATE user_courts SET role = 'home', position = 0 WHERE user_id = ? AND court_id = ?").bind(r.user_id, into.id));
-  }
-  stmts.push(c.env.DB.prepare("UPDATE matches SET court_id = ? WHERE court_id = ?").bind(into.id, ct.id));
+  const { stmts, userIds } = await moveCourtUsage(c.env, ct.id, into.id);
   stmts.push(c.env.DB.prepare("UPDATE courts SET status = 'merged', merged_into = ? WHERE id = ?").bind(into.id, ct.id));
   await c.env.DB.batch(stmts);
-  const ids = [...new Set([ct.submitted_by, ...rows.map((r) => r.user_id)].filter(Boolean) as string[])];
+  const ids = [...new Set([ct.submitted_by, ...userIds].filter(Boolean) as string[])];
   await notify(c.env, (p) => c.executionCtx.waitUntil(p), ids,
     `${ct.name} matched an existing court, ${into.name}. Your profile now shows ${into.name}.`, { subject: "Your court was matched" });
   return c.json({ ok: true });
