@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { STATES } from "../shared/data";
-import { addDaysISO, ageOn, isISODate, lagosToday, MIN_AGE } from "../shared/rules";
+import { addDaysISO, ageOn, isISODate, lagosToday, MIN_AGE, scoreLine } from "../shared/rules";
 import { requireUser } from "./auth";
 import { bad, HttpError, newId, now, str, type AppEnv } from "./lib";
 import { notify } from "./notify";
@@ -107,6 +107,7 @@ admin.post("/courts/:id/reject", async (c) => {
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM user_courts WHERE court_id = ?").bind(ct.id),
     c.env.DB.prepare("UPDATE courts SET status = 'rejected' WHERE id = ?").bind(ct.id),
+    c.env.DB.prepare("UPDATE matches SET court_id = NULL WHERE court_id = ?").bind(ct.id), // scores stay; the court is just unknown
   ]);
   const ids = [...new Set([ct.submitted_by, ...affected.map((a) => a.user_id)].filter(Boolean) as string[])];
   await notify(c.env, (p) => c.executionCtx.waitUntil(p), ids,
@@ -301,6 +302,31 @@ admin.get("/matches/:id", async (c) => {
     ? await c.env.DB.prepare("SELECT id, first_name AS first, last_name AS last, pid, status FROM users WHERE id = ?").bind(id).first()
     : null;
   return c.json({ ...m, submitter: await who(m.submittedBy), resolver: await who(row?.resolved_by ?? null) });
+});
+
+/** Deletes any match (any status). Everyone in it is told by inbox + email, with the admin's reason if given. */
+admin.post("/matches/:id/delete", async (c) => {
+  const [m] = await loadMatches(c.env, "WHERE m.id = ?", [c.req.param("id")]);
+  if (!m) throw new HttpError(404, "Match not found");
+  const b = await c.req.json().catch(() => ({}));
+  const reason = str(b.reason, 300).replace(/\s+/g, " ").trim();
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE notifications SET match_id = NULL WHERE match_id = ?").bind(m.id),
+    c.env.DB.prepare("DELETE FROM match_players WHERE match_id = ?").bind(m.id),
+    c.env.DB.prepare("DELETE FROM matches WHERE id = ?").bind(m.id),
+  ]);
+  const names = (ps: { first: string }[]) => ps.map((p) => p.first).join(" & ");
+  const date = new Date(m.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  const counted = m.status === "confirmed" ? " It no longer counts on your record." : "";
+  const why = reason ? ` Reason: ${reason.replace(/[.!?]?$/, ".")}` : "";
+  const wu = (p: Promise<unknown>) => c.executionCtx.waitUntil(p);
+  // each side reads the match from their own point of view
+  for (const [mine, theirs, from] of [[m.teamA, m.teamB, "A"], [m.teamB, m.teamA, "B"]] as const) {
+    await notify(c.env, wu, mine.map((p) => p.id),
+      `An admin removed your match from ${date} vs ${names(theirs)} (${scoreLine(m.sets, from)}).${counted}${why}`,
+      { subject: "A match was removed" });
+  }
+  return c.json({ ok: true });
 });
 
 /* ---------- home dashboard ---------- */
