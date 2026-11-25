@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { FORMATS } from "../../shared/rules";
 import { api, type Match } from "../api";
 import { MagnifyingGlass } from "../icons";
-import { ErrorText, fullName, Loading, ScoreCard, TopBar, useSession } from "../ui";
+import { HoldButton } from "../hold";
+import { ErrorText, fullName, Loading, ScoreCard, TopBar, useSession, useUi } from "../ui";
 
 type Status = "all" | Match["status"];
 interface Totals { all: number; confirmed: number; pending: number; rejected: number; expired: number }
@@ -157,10 +158,16 @@ type MatchDetail = Match & { submitter: Person | null; resolver: Person | null }
 
 /** Admin › Matches › one match, view only. */
 export function AdminMatchPage() {
-  const { id } = useParams(); const nav = useNavigate(); const { me } = useSession();
+  const { id } = useParams(); const nav = useNavigate(); const { me } = useSession(); const { toast, confirm } = useUi();
   const [m, setM] = useState<MatchDetail | null>(null); const [err, setErr] = useState("");
+  const [reason, setReason] = useState(""); const [delErr, setDelErr] = useState("");
   useEffect(() => { api.get<MatchDetail>(`/admin/matches/${id}`).then(setM).catch((e) => setErr(e.message)); }, [id]);
   const back = () => nav("/admin?tab=matches");
+  async function del() {
+    setDelErr("");
+    try { await api.post(`/admin/matches/${id}/delete`, { reason }); toast("Match deleted. The players were told."); back(); }
+    catch (e: any) { setDelErr(e.message); }
+  }
 
   if (!me?.isAdmin) return <><TopBar title="Admin" back="/me" /><main><div className="empty">Admins only.</div></main></>;
   if (err) return <><TopBar title="Match" back={back} dark /><main><ErrorText msg={err} /></main></>;
@@ -199,6 +206,20 @@ export function AdminMatchPage() {
           {m.status === "pending" && <><dt>Expires</dt><dd>{when(m.expiresAt ?? m.submittedAt + 7 * 864e5)}</dd></>}
           <dt>Match ID</dt><dd className="mono">{m.id}</dd>
         </dl></div>
+        <div className="h2">Delete match</div>
+        <div className="card">
+          <p className="small" style={{ marginTop: 0 }}>
+            {m.status === "confirmed" ? "This removes the match from both sides' records, the leaderboard and streaks. " : "This removes the match for everyone. "}
+            All {m.teamA.length + m.teamB.length} players get an inbox message and email. This can't be undone.
+          </p>
+          <label className="f" htmlFor="f-del-reason">Reason <span className="opt">(optional, included in the message)</span></label>
+          <textarea id="f-del-reason" className="inp" rows={2} maxLength={300} placeholder="e.g. Entered twice by mistake" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <ErrorText msg={delErr} />
+          <div style={{ marginTop: 10 }}>
+            <HoldButton label="Hold to delete match" ms={1500} onConfirm={del}
+              onKeyboard={() => confirm({ title: "Delete this match?", body: `${scoreText(m)} on ${dateText(m.date)}. All players will be told. This can't be undone.`, ok: "Delete", danger: true, onOk: del })} />
+          </div>
+        </div>
       </main>
     </>
   );

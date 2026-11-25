@@ -899,3 +899,5 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .court-del .small{margin:4px 0 8px}
 .court-del optgroup{font-weight:600}
 .pl > .link{padding:8px 4px;flex:none}
+.f .opt{font-weight:400;color:var(--mute)}
+textarea.inp{resize:vertical;min-height:64px;line-height:1.45}

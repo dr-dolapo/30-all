@@ -70,7 +70,10 @@ matches.post("/matches", requireUser(), async (c) => {
   if (dateErr) throw bad(dateErr);
 
   const courtId = str(b.courtId, 64);
-  const court = await c.env.DB.prepare("SELECT id FROM courts WHERE id = ? AND status = 'approved'").bind(courtId).first();
+  // any approved court, or a court the submitter added to their profile that's still awaiting approval
+  const court = await c.env.DB.prepare(
+    `SELECT ct.id FROM courts ct WHERE ct.id = ?1 AND (ct.status = 'approved'
+       OR (ct.status = 'pending' AND EXISTS (SELECT 1 FROM user_courts uc WHERE uc.court_id = ct.id AND uc.user_id = ?2)))`).bind(courtId, me.id).first();
   if (!court) throw bad("Choose a court");
 
   const partner = type === "doubles" ? str(b.partner, 64) : "";

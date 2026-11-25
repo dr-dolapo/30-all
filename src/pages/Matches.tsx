@@ -303,7 +303,8 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
   const today = lagosToday();
   const minDate = addDaysISO(today, -MAX_BACKDATE_DAYS);
   const tooOld = defaultDate < minDate;
-  const home = me?.courts.find((c) => c.role === "home" && c.status === "approved");
+  // default to the player's home court, even while it's still waiting for admin approval
+  const home = me?.courts.find((c) => c.role === "home" && (c.status === "approved" || c.status === "pending"));
 
   const [phase, setPhase] = useState<1 | 2>(1);
   const [type, setType] = useState<"singles" | "doubles">("singles");
@@ -316,6 +317,10 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
   const [picker, setPicker] = useState<Slot | null>(null);
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { api.get<CourtRef[]>("/ref/courts").then(setCourts).catch(() => {}); }, []);
+  useEffect(() => { if (!courtId && home) setCourtId(home.id); }, [home?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // home court first, then the player's own pending courts, then every approved court
+  const mine = (me?.courts ?? []).filter((c) => c.status === "pending");
+  const courtOptions = [...(home ? [home] : []), ...mine.filter((c) => c.id !== home?.id), ...courts.filter((c) => c.id !== home?.id && !mine.some((p) => p.id === c.id))];
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && !picker && close();
     window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
@@ -399,7 +404,7 @@ function AddScoreDrawer({ defaultDate, onClose, onSubmitted }: { defaultDate: st
             <label className="f" htmlFor="f-matches-court">Court</label>
             <select id="f-matches-court" className="inp" value={courtId} onChange={(e) => setCourtId(e.target.value)}>
               <option value="">Choose court…</option>
-              {courts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {courtOptions.map((c) => <option key={c.id} value={c.id}>{c.name}{c.id === home?.id ? (c.status === "pending" ? " (home, pending)" : " (home)") : c.status === "pending" ? " (pending)" : ""}</option>)}
             </select>
             <div className="f" id="f-format">Format</div>
             <div className="chips" role="group" aria-labelledby="f-format">
