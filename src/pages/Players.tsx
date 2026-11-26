@@ -134,9 +134,9 @@ export function ProfileSections({ u, courts, racquets, record, activity, mine = 
     <>
       <div className="prohead">
         <Avatar u={u} size={96} />
-        <h1 className="nm">{fullName(u)}</h1>
-        <div className="pid">ID: {u.pid}</div>
-        {flagUrl(u.nationality) && <img className="flag" src={flagUrl(u.nationality)!} alt={u.nationality ?? ""} title={u.nationality ?? ""} width={24} height={16} />}
+        {/* the flag rides on the surname so a long name never wraps it onto a line of its own */}
+        <h1 className="nm">{u.first} <span className="nm-last">{u.last}{flagUrl(u.nationality) && <img className="flag" src={flagUrl(u.nationality)!} alt={u.nationality ?? ""} title={u.nationality ?? ""} width={24} height={16} />}</span></h1>
+        {!mine && <div className="pid">ID: {u.pid}</div>}
       </div>
       {record && <RecordBlock record={record} />}
       {activity && <ActivityCard a={activity} first={u.first} mine={mine} uid={u.id} />}

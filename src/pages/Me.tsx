@@ -132,6 +132,7 @@ export function MyProfile() {
         <ProfileSections u={me} courts={me.courts} racquets={me.racquets} record={stats?.record} activity={stats?.activity} mine
           private={{ gender: me.gender, dob: me.dob, height: heightText(me.heightCm, me.heightUnit), whatsapp: me.whatsapp, email: me.email }} />
         <div className="pro-actions">
+          <p className="pro-pid">Player ID: <b>{me.pid}</b></p>
           <Link to="/me/edit" className="btn ghost">Edit profile</Link>
           <button className="btn ghost" onClick={logout}>Log out</button>
         </div>
