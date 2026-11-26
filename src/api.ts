@@ -1,4 +1,5 @@
 import type { FormatKey, SetScore, Side } from "../shared/rules";
+import { API_COMPAT, COMPAT_HEADER } from "../shared/version";
 
 export interface PublicUser {
   id: string; pid: string; first: string; last: string; nationality: string | null;
@@ -28,13 +29,15 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const init: RequestInit = { method, credentials: "same-origin", headers: {} };
+  const init: RequestInit = { method, credentials: "same-origin", headers: { [COMPAT_HEADER]: String(API_COMPAT) } };
   if (body instanceof FormData) init.body = body;
   else if (body !== undefined) { init.body = JSON.stringify(body); (init.headers as any)["Content-Type"] = "application/json"; }
   let res: Response;
   try { res = await fetch("/api" + path, init); }
   catch { throw new ApiError(0, "Can't reach 30-All. Check your connection."); }
   const data = await res.json().catch(() => ({}));
+  // this copy of the app is too old for the server: load the new one (and never settle this request)
+  if (res.status === 426 && data.reload) { window.location.reload(); return new Promise<T>(() => {}); }
   if (!res.ok) throw new ApiError(res.status, data.error || "That didn't go through. Try again in a moment.", data);
   return data as T;
 }
