@@ -139,7 +139,7 @@ export function ProfileSections({ u, courts, racquets, record, activity, mine = 
         {flagUrl(u.nationality) && <img className="flag" src={flagUrl(u.nationality)!} alt={u.nationality ?? ""} title={u.nationality ?? ""} width={24} height={16} />}
       </div>
       {record && <RecordBlock record={record} />}
-      {activity && <ActivityCard a={activity} mine={mine} uid={u.id} />}
+      {activity && <ActivityCard a={activity} first={u.first} mine={mine} uid={u.id} />}
       <div className="h2">Tennis</div>
       <div className="card dlist">
         <div className="drow"><span>Home court</span><b>{cLine(home)}</b></div>
