@@ -4,6 +4,7 @@ import { auth } from "./auth";
 import { HttpError, type AppEnv, type Env } from "./lib";
 import { expirePending, matches } from "./matches";
 import { profile } from "./profile";
+import { API_COMPAT, COMPAT_HEADER } from "../shared/version";
 
 const api = new Hono<AppEnv>().basePath("/api");
 
@@ -11,6 +12,14 @@ api.onError((err, c) => {
   if (err instanceof HttpError) return c.json({ error: err.message }, err.status as any);
   console.error(err);
   return c.json({ error: "30-All hit a problem on our side. Try again in a moment." }, 500);
+});
+
+// A tab running a copy of the app that's too old for this API reloads itself (see shared/version.ts).
+// Old copies without the header count as level 0, so nothing is forced until API_COMPAT is bumped.
+api.use("*", async (c, next) => {
+  if (c.req.path !== "/api/health" && Number(c.req.header(COMPAT_HEADER) ?? 0) < API_COMPAT)
+    return c.json({ error: "30-All has been updated. Refresh the page to continue.", reload: true }, 426);
+  await next();
 });
 
 // Basic CSRF protection: state-changing requests must come from our own site.

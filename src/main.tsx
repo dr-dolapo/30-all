@@ -10,6 +10,7 @@ import { Done, Onboarding } from "./pages/Onboarding";
 import { Player, Players } from "./pages/Players";
 import "./styles.css";
 import { Loading, SessionProvider, UiProvider, useSession } from "./ui";
+import { ReloadWhenStale, watchForUpdates } from "./version";
 
 /** Sends people to the right place depending on whether they're logged in and have finished sign-up. */
 function Gate({ need, children }: { need: "guest" | "onboarding" | "active"; children: ReactNode }) {
@@ -23,9 +24,12 @@ function Gate({ need, children }: { need: "guest" | "onboarding" | "active"; chi
   return <>{children}</>;
 }
 
+watchForUpdates();
+
 function App() {
   return (
     <div className="shell">
+      <ReloadWhenStale />
       <Routes>
         <Route path="/" element={<Gate need="guest"><Welcome /></Gate>} />
         <Route path="/login" element={<Gate need="guest"><Login /></Gate>} />
