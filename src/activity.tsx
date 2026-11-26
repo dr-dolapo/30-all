@@ -1,153 +1,111 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { celebrated, confetti } from "./confetti";
 import { addDaysISO, lagosToday } from "../shared/rules";
-import { mondayOf, weekdayISO, weekStreak } from "../shared/streak";
-import { X } from "./icons";
-import { useDialogFocus, usePresence } from "./ui";
+import { mondayOf, weekStreak } from "../shared/streak";
 
 /**
- * Play tracker. Each square is a day; its shade is how many confirmed matches were played that day.
- * Weeks run Monday to Sunday across, oldest week at the top. The streak counts weeks in a row with
- * at least one match; the current week only breaks it once it's over.
+ * Tennis days: one column per week (Monday at the top), scrolling left to right, newest on the right.
+ * A ball marks each day with at least one confirmed match; other days are grey dots; days still to come
+ * are outlined. The filter switches between all-time, this year and this month, and the line under the
+ * grid counts matches and days played in that range.
  */
 export interface Activity { days: Record<string, number>; since: string }
 
-const WD = ["M", "T", "W", "T", "F", "S", "S"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const level = (n: number) => (n <= 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3);
-const weekday = weekdayISO; // Monday = 0
+type Range = "all" | "year" | "month";
+const RANGES: Array<[Range, string]> = [["all", "All-time"], ["year", "This year"], ["month", "This month"]];
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const nice = (iso: string) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-
-export function streaks(a: Activity, today = lagosToday()) {
-  const weekHas = (mon: string) => { for (let k = 0; k < 7; k++) if (a.days[addDaysISO(mon, k)]) return true; return false; };
-  const thisMon = mondayOf(today), firstMon = mondayOf(a.since <= today ? a.since : today);
-  const current = weekStreak(Object.keys(a.days), today);
-  let best = 0, run = 0;
-  for (let m = firstMon; m <= thisMon; m = addDaysISO(m, 7)) { if (weekHas(m)) best = Math.max(best, ++run); else run = 0; }
-  const matches = Object.values(a.days).reduce((x, n) => x + n, 0);
-  return { current, best, matches, days: Object.keys(a.days).length };
-}
-
-function Cell({ iso, n, today, num }: { iso: string; n: number; today: string; num?: number }) {
-  if (iso > today) return <i className="ac-c fut" aria-hidden="true">{num}</i>;
-  return <i className="ac-c" data-l={level(n)} data-today={iso === today || undefined} data-d={iso} data-n={n}
-    title={`${nice(iso)}: ${n ? `${n} match${n > 1 ? "es" : ""}` : "no matches"}`}>{num}</i>;
-}
-
-const MAX_WEEKS = 6;
-
-/** Up to the last 6 weeks on the profile: one row per week the player has been on 30-All. Tapping it opens the full history. */
+const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 const STREAK_MILESTONES = [4, 8, 12, 26, 52];
 
-export function ActivityCard({ a, mine, uid }: { a: Activity; mine: boolean; uid?: string }) {
-  const [open, setOpen] = useState(false);
-  const card = useRef<HTMLButtonElement>(null);
-  const [milestone, setMilestone] = useState(0);
+function bounds(r: Range, since: string, today: string) {
+  const y = today.slice(0, 4), m = today.slice(0, 7);
+  if (r === "all") return { from: since < today ? since : today, to: today, label: "so far" };
+  if (r === "year") return { from: `${y}-01-01`, to: `${y}-12-31`, label: "this year" };
+  const last = new Date(Date.UTC(+y, +today.slice(5, 7), 0)).getUTCDate();
+  return { from: `${m}-01`, to: `${m}-${String(last).padStart(2, "0")}`, label: "this month" };
+}
+
+const Ball = () => (
+  <svg viewBox="0 0 20 20" aria-hidden="true">
+    <circle cx="10" cy="10" r="9.2" fill="var(--o)" />
+    <path d="M3.2 3.8c3.4 2.6 3.4 9.8 0 12.4M16.8 3.8c-3.4 2.6-3.4 9.8 0 12.4" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+export function ActivityCard({ a, first, mine, uid }: { a: Activity; first: string; mine: boolean; uid?: string }) {
+  const [range, setRange] = useState<Range>("year");
   const today = lagosToday();
-  // a new player sees one row in their first week, two in their second, and so on up to six
-  const thisMon = mondayOf(today);
-  const sinceMon = mondayOf(a.since < today ? a.since : today);
-  const weeks = Math.min(MAX_WEEKS, Math.round((Date.parse(thisMon) - Date.parse(sinceMon)) / (7 * 864e5)) + 1);
-  const first = addDaysISO(thisMon, -7 * (weeks - 1));
-  const s = useMemo(() => streaks(a, today), [a, today]);
-  let recent = 0; for (let i = 0; i < weeks * 7; i++) recent += a.days[addDaysISO(first, i)] ?? 0;
-  const rows = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, k) => addDaysISO(first, w * 7 + k)));
+  const card = useRef<HTMLDivElement>(null), scroller = useRef<HTMLDivElement>(null);
+  const [milestone, setMilestone] = useState(0);
+  const b = bounds(range, a.since, today);
+
+  const { cols, matches, days } = useMemo(() => {
+    const cols: Array<{ mon: string; days: string[]; month?: string }> = [];
+    for (let mon = mondayOf(b.from); mon <= b.to; mon = addDaysISO(mon, 7)) {
+      const ds = Array.from({ length: 7 }, (_, k) => addDaysISO(mon, k));
+      const firstOfMonth = ds.find((d) => d.endsWith("-01") && d >= b.from && d <= b.to);
+      cols.push({ mon, days: ds, month: firstOfMonth ? MON[+firstOfMonth.slice(5, 7) - 1] + (range === "all" && firstOfMonth.slice(5, 7) === "01" ? ` ${firstOfMonth.slice(2, 4)}` : "") : undefined });
+    }
+    // label the first column with its month too, unless a new month starts right after it
+    if (cols.length && !cols.slice(0, 3).some((c) => c.month)) cols[0].month = MON[+b.from.slice(5, 7) - 1];
+    let matches = 0, days = 0;
+    for (const [d, n] of Object.entries(a.days)) if (d >= b.from && d <= b.to && d <= today) { matches += n; days++; }
+    return { cols, matches, days };
+  }, [a, range, today]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // open on today: its week sits near the right edge with a little of what's ahead still visible
+  const [faded, setFaded] = useState(false);
+  const onScroll = () => { const el = scroller.current; if (el) setFaded(el.scrollLeft > 2); };
+  useLayoutEffect(() => {
+    const el = scroller.current; if (!el) return;
+    const col = el.querySelector<HTMLElement>("[data-now]");
+    el.scrollLeft = col ? col.offsetLeft + col.offsetWidth * 3.5 - el.clientWidth : el.scrollWidth;
+    onScroll();
+  }, [range]);
 
   // your own profile: a small pop at 4, 8, 12, 26 and 52 weeks in a row, once per milestone of each streak
+  const streak = useMemo(() => weekStreak(Object.keys(a.days), today), [a, today]);
   useEffect(() => {
-    if (!mine || !uid || !STREAK_MILESTONES.includes(s.current)) return;
+    if (!mine || !uid || !STREAK_MILESTONES.includes(streak)) return;
+    const thisMon = mondayOf(today);
     const lastMon = Object.keys(a.days).some((d) => d >= thisMon && d <= today) ? thisMon : addDaysISO(thisMon, -7);
-    const key = `streak:${s.current}:${addDaysISO(lastMon, -7 * (s.current - 1))}`;
+    const key = `streak:${streak}:${addDaysISO(lastMon, -7 * (streak - 1))}`;
     if (celebrated.has(uid, key) || !card.current) return;
-    setMilestone(s.current);
-    // the card is often below the fold: pop when it's actually on screen
+    setMilestone(streak);
     const io = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return;
       io.disconnect(); celebrated.mark(uid, key);
-      setTimeout(() => confetti("small", card.current?.querySelector(".ac-streak b") ?? card.current), 250);
+      setTimeout(() => confetti("small", card.current?.querySelector(".td-ms") ?? card.current), 250);
     }, { threshold: 0.6 });
     io.observe(card.current);
     return () => io.disconnect();
-  }, [uid, s.current]);
+  }, [uid, streak]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const summary = `${first} has played ${plural(matches, "match", "matches")} on ${plural(days, "day")} ${b.label}.`;
   return (
-    <>
-      <div className="h2 ac-title">Activity</div>
-      <button type="button" ref={card} className="card ac-card" onClick={() => setOpen(true)}>
-        <span className="sr-only">{recent} {recent === 1 ? "match" : "matches"} in the last {weeks === 1 ? "week" : `${weeks} weeks`}. </span>
-        <div className="ac-grid small" aria-hidden="true">
-          {WD.map((d, i) => <span key={i} className="ac-wd">{d}</span>)}
-          {rows.flat().map((iso) => <Cell key={iso} iso={iso} n={a.days[iso] ?? 0} today={today} />)}
-        </div>
-        {recent === 0 ? (
-          <div className="ac-nudge">{(weeks === 1 ? "No matches this week." : `No matches in the last ${weeks} weeks.`) + (mine ? " Log a score to start a streak." : "")}</div>
-        ) : (
-          <div className="ac-streak"><b>{s.current}</b><span>week streak</span>{milestone > 0 && <em className="ac-ms">{milestone} weeks in a row. Keep it going.</em>}</div>
-        )}
-        <span className="sr-only">. Open full history</span>
-      </button>
-      {open && <ActivitySheet a={a} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
-/** Full history: every month back to when the player joined, newest month first. */
-function ActivitySheet({ a, onClose }: { a: Activity; onClose: () => void }) {
-  const { state, close } = usePresence(onClose, 280);
-  const dref = useDialogFocus();
-  const [picked, setPicked] = useState<string | null>(null);
-  const today = lagosToday();
-  const s = useMemo(() => streaks(a, today), [a, today]);
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
-    window.addEventListener("keydown", esc); return () => window.removeEventListener("keydown", esc);
-  }, []);
-
-  const months: Array<{ y: number; m: number }> = [];
-  const stop = a.since.slice(0, 7) < today.slice(0, 7) ? a.since.slice(0, 7) : today.slice(0, 7);
-  for (let y = +today.slice(0, 4), m = +today.slice(5, 7) - 1; ; m--) {
-    if (m < 0) { m = 11; y--; }
-    months.push({ y, m });
-    if (`${y}-${String(m + 1).padStart(2, "0")}` <= stop) break;
-  }
-  const pick = (e: React.MouseEvent) => { const t = (e.target as HTMLElement).closest<HTMLElement>("[data-d]"); if (t) setPicked(t.dataset.d!); };
-  const pn = picked ? a.days[picked] ?? 0 : 0;
-
-  return (
-    <div className="sheet-bg" data-state={state} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div ref={dref} className="sheet ac-sheet" data-state={state} role="dialog" aria-modal="true" aria-label="Activity">
-        <div className="sheet-head"><h3>Activity</h3><button className="xbtn" aria-label="Close" onClick={() => close()}><X size={20} weight="bold" /></button></div>
-        <div className="ac-stats">
-          <div><b>{s.current}</b><span>week streak</span></div>
-          <div><b>{s.best}</b><span>best streak</span></div>
-          <div><b>{s.days}</b><span>days played</span></div>
-          <div><b>{s.matches}</b><span>matches</span></div>
-        </div>
-        <div className="ac-legend" aria-hidden="true">
-          <span><i className="ac-c" data-l="0" />None</span><span><i className="ac-c" data-l="1" />1</span>
-          <span><i className="ac-c" data-l="2" />2</span><span><i className="ac-c" data-l="3" />3+</span>
-        </div>
-        <div className="ac-months" onClick={pick}>
-          {months.map(({ y, m }) => {
-            const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-            const firstIso = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-            let played = 0;
-            const cells = Array.from({ length: last }, (_, i) => { const iso = addDaysISO(firstIso, i); played += a.days[iso] ?? 0; return iso; });
-            return (
-              <section key={firstIso} className="ac-month">
-                <h4>{MONTHS[m]} {y}<small>{played ? `${played} match${played > 1 ? "es" : ""}` : "No matches"}</small></h4>
-                <div className="ac-grid big">
-                  {WD.map((d, i) => <span key={i} className="ac-wd">{d}</span>)}
-                  {Array.from({ length: weekday(firstIso) }, (_, i) => <i key={"b" + i} className="ac-blank" />)}
-                  {cells.map((iso, i) => <Cell key={iso} iso={iso} n={a.days[iso] ?? 0} today={today} num={i + 1} />)}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-        <div className="ac-pick" aria-live="polite">
-          {picked ? <><b>{nice(picked)}</b> · {pn ? `${pn} match${pn > 1 ? "es" : ""}` : "no matches"}</> : "Tap a day to see it"}
-        </div>
+    <div className="card td-card" ref={card}>
+      <h2 className="td-title">Tennis days</h2>
+      <div className="seg td-seg" role="group" aria-label="Time range">
+        {RANGES.map(([k, label]) => <button key={k} type="button" className={range === k ? "on" : ""} aria-pressed={range === k} onClick={() => setRange(k)}>{label}</button>)}
       </div>
+      <div className={"td-scroll" + (faded ? " faded" : "")} ref={scroller} onScroll={onScroll} tabIndex={0} role="img" aria-label={summary}>
+        <div className="td-cols">
+          {cols.map((c) => (
+            <div className="td-col" key={c.mon} data-now={c.mon === mondayOf(today) || undefined}>
+              {c.days.map((d) => {
+                const cls = d < b.from || d > b.to ? "out" : d > today ? "fut" : "";
+                const n = cls ? 0 : a.days[d] ?? 0;
+                return <i key={d} className={"td-c " + cls} data-today={d === today || undefined}
+                  title={cls === "out" ? undefined : `${nice(d)}${cls === "fut" ? "" : n ? `: ${plural(n, "match", "matches")}` : ": no tennis"}`}>{n > 0 && <Ball />}</i>;
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="td-months" aria-hidden="true">{cols.map((c) => <span key={c.mon}>{c.month}</span>)}</div>
+      </div>
+      <p className="td-sum"><b>{first}</b> has played <b>{plural(matches, "match", "matches")}</b> on {plural(days, "day")} {b.label}.{mine && matches === 0 && " Log a score to add your first ball."}</p>
+      {milestone > 0 && <p className="td-ms">🔥 {milestone} weeks in a row. Keep it going.</p>}
     </div>
   );
 }

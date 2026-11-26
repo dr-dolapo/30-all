@@ -653,7 +653,7 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* ---------- display type: Poppins Black on headings across the app ---------- */
 :root{--display:Poppins,Inter,system-ui,sans-serif}
-.top h1,.h2,.sheet h3,.dialog h3,.welcome h1,.welcome h2,.prohead .nm,.rec-big,.dash-kpi-value,.dash-card h3,.ac-streak b,.ac-stats b,.sc-big,.empty-title{font-family:var(--display);font-weight:900;letter-spacing:-.01em}
+.top h1,.h2,.sheet h3,.dialog h3,.welcome h1,.welcome h2,.prohead .nm,.rec-big,.dash-kpi-value,.dash-card h3,.sc-big,.empty-title{font-family:var(--display);font-weight:900;letter-spacing:-.01em}
 .rec-big{letter-spacing:-.02em}
 .rec-dash{font-weight:700}
 
@@ -667,48 +667,31 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .pro-actions{display:grid;gap:10px;margin-top:24px}
 .pro-actions .btn{text-decoration:none}
 
-/* ---------- activity card (play tracker) ---------- */
-:root{--ac0:#E2E2E2;--ac1:#FAD9C1;--ac2:#F6B588;--ac3:#EF732A}
-.ac-title{text-align:center;margin-top:24px}
-.ac-card{display:block;width:100%;text-align:center;padding:18px 18px 16px;border-radius:20px;cursor:pointer;color:inherit;font:inherit;transition:transform 160ms var(--ease-out),box-shadow 160ms ease}
-.ac-card:active{transform:scale(.985)}
-@media (hover:hover) and (pointer:fine){.ac-card:hover{box-shadow:0 0 0 1.5px #D6D6D6}}
-.ac-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;max-width:340px;margin:0 auto}
-.ac-wd{font-size:12px;color:var(--mute);font-weight:500;line-height:1;padding-bottom:2px}
-.ac-c{display:grid;place-items:center;aspect-ratio:1;border-radius:9px;background:var(--ac0);font-style:normal;font-size:11px;font-weight:600;color:rgba(0,0,0,.45)}
-.ac-c[data-l="1"]{background:var(--ac1)}.ac-c[data-l="2"]{background:var(--ac2)}.ac-c[data-l="3"]{background:var(--ac3);color:#fff}
-.ac-c.fut{background:#fff;box-shadow:inset 0 0 0 1px #D4D4D4;color:#C4C4C4}
-.ac-blank{visibility:hidden}
-.ac-streak{display:flex;flex-direction:column;align-items:center;margin-top:16px;line-height:1}
-.ac-streak b{font-size:52px;line-height:1}
-.ac-streak span{font-family:var(--display);font-weight:700;font-size:16px;margin-top:2px}
-.ac-nudge{margin-top:14px;font-size:13.5px;color:var(--ink2);max-width:260px;margin-left:auto;margin-right:auto}
-/* full history sheet */
-.ac-sheet{max-height:90vh}
-.ac-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.ac-stats div{background:#F4F4F4;border-radius:12px;padding:10px 6px;text-align:center}
-.ac-stats b{display:block;font-size:22px;line-height:1.1}
-.ac-stats span{font-size:11px;color:var(--mute)}
-.ac-legend{display:flex;gap:12px;justify-content:center;font-size:11.5px;color:var(--mute);margin-bottom:6px}
-.ac-legend span{display:inline-flex;align-items:center;gap:5px}
-.ac-legend .ac-c{width:12px;height:12px;border-radius:3px}
-.ac-month{padding:14px 0 6px;border-top:1px solid #F0F0F0}
-.ac-month:first-child{border-top:0}
-.ac-month h4{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--display);font-weight:900;font-size:15px;margin-bottom:10px}
-.ac-month h4 small{font-family:Inter,system-ui,sans-serif;font-weight:500;font-size:12px;color:var(--mute)}
-.ac-grid.big{gap:6px;max-width:none}
-.ac-grid.big .ac-c{border-radius:8px;cursor:pointer}
-.ac-grid.big .ac-c[data-today]{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ink)}
-.ac-pick{position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom,0px));background:#fff;margin:6px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid #F0F0F0;font-size:13.5px;color:var(--ink2);text-align:center}
-.ac-pick b{color:var(--ink)}
-/* activity card: half-size squares, up to 6 weeks */
-.ac-grid.small{max-width:170px;gap:4px}
-.ac-grid.small .ac-wd{font-size:9.5px;padding-bottom:1px}
-.ac-grid.small .ac-c{border-radius:4.5px}
-.ac-card .ac-streak{margin-top:12px}
-.ac-card .ac-streak b{font-size:34px}
-.ac-card .ac-streak span{font-size:13px}
-.ac-card{padding:16px 18px 14px}
+/* ---------- tennis days tracker ---------- */
+.td-card{margin-top:24px;padding:16px;border-radius:20px}
+.td-title{font-family:var(--display);font-weight:900;font-size:18px;margin:0 0 12px;letter-spacing:-.01em}
+.td-seg{margin-bottom:14px;border-radius:999px}
+.td-seg::before{border-radius:999px}
+.td-seg button{border-radius:999px;font-size:13px;padding:8px 4px;white-space:nowrap}
+@media (max-width:359px){.td-seg button{font-size:12px}}
+.td-scroll{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;outline-offset:4px;border-radius:6px}
+.td-scroll::-webkit-scrollbar{display:none}
+/* older weeks fade in at the left edge only when there's more to scroll back to */
+.td-scroll.faded{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px);mask-image:linear-gradient(90deg,transparent 0,#000 22px)}
+.td-scroll:focus-visible{outline:2px solid var(--o)}
+.td-cols,.td-months{display:flex;gap:4px;width:max-content;padding:3px}
+.td-col{display:grid;grid-template-rows:repeat(7,16px);gap:4px}
+.td-c{width:16px;height:16px;border-radius:50%;background:#E6E6E6;display:block;position:relative}
+.td-c:has(svg){background:none}
+.td-c svg{display:block;width:100%;height:100%}
+.td-c.fut{background:#fff;box-shadow:inset 0 0 0 1.5px #D6D6D6}
+.td-c.out{visibility:hidden}
+.td-c[data-today]::after{content:"";position:absolute;inset:-3px;border-radius:50%;box-shadow:0 0 0 1.5px var(--ink)}
+.td-months{padding-top:4px;height:22px}
+.td-months span{width:16px;flex:none;font-size:11px;font-weight:600;color:var(--mute);white-space:nowrap;letter-spacing:.03em}
+.td-sum{margin:12px 0 0;font-size:14.5px;line-height:1.45;color:var(--mute)}
+.td-sum b{color:var(--ink);font-weight:700}
+.td-ms{margin:8px 0 0;font-size:13px;font-weight:600;color:var(--o-text)}
 /* ---------- Players tab: the leaderboard ---------- */
 .top .iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#F2F2F2;color:var(--ink);flex:none;transition:transform 120ms var(--ease-out),background-color 160ms ease}
 .top .iconbtn:active{transform:scale(.94)}
@@ -870,7 +853,6 @@ button,[role="button"],.chip,.btn,.nav a,.dday{-webkit-user-select:none;user-sel
 .cel-x{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#bbb}
 .cel-x:active{background:#222}
 .lb-up{font-style:normal;font-size:11px;font-weight:800;color:var(--ok);flex:none}
-.ac-ms{display:block;font-style:normal;font-family:Inter,system-ui,sans-serif;font-weight:600;font-size:12.5px;color:var(--o-text);margin-top:6px}
 @media (prefers-reduced-motion: reduce){.cel-card{animation:none}}
 .dialog:focus,.sheet:focus{outline:none}
 /* interface review: entrances fade only when Reduce motion is on */
